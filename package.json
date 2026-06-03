@@ -1,0 +1,46 @@
+{
+  "name": "plataforma-nr1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Plataforma Integrada de Saúde Organizacional e Conformidade NR-1",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "vercel-build": "prisma generate && prisma migrate deploy && next build",
+    "postinstall": "prisma generate",
+    "start": "next start",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:reset": "prisma migrate reset",
+    "demo": "tsx demo/e2e.ts",
+    "demo:ai": "tsx demo/ai-worker.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "@prisma/driver-adapter-utils": "6.19.3"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.4.6",
+    "@prisma/client": "^6.19.3",
+    "exceljs": "^4.4.0",
+    "next": "^16.2.7",
+    "pglite-prisma-adapter": "^0.6.1",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.2.16",
+    "@types/react-dom": "^19.2.3",
+    "prisma": "^6.19.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

@@ -1,0 +1,70 @@
+import { PrismaClient } from "@prisma/client";
+import { PGlite } from "@electric-sql/pglite";
+import { PrismaPGlite } from "pglite-prisma-adapter";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+// =============================================================================
+// Conexão. Três modos:
+//   • injected  → um client já posto em globalThis.prisma (usado pelos demos)
+//   • postgres  → DATABASE_URL aponta para um Postgres real (produção)
+//   • pglite    → fallback dev/local: Postgres em WASM persistido em disco
+// Em modo pglite, ensureDb() aplica a migration e o seed no primeiro acesso.
+// =============================================================================
+
+const g = globalThis as unknown as {
+  prisma?: PrismaClient;
+  __pg?: PGlite;
+  __dbReady?: Promise<void>;
+};
+
+function createPrisma(): PrismaClient {
+  if (g.prisma) return g.prisma; // injetado (demos)
+
+  const url = process.env.DATABASE_URL ?? "";
+  if (url.startsWith("postgres")) {
+    return new PrismaClient({ log: ["error"] });
+  }
+
+  // PGlite — roda sem instalar Postgres. Troque por um Postgres real definindo
+  // DATABASE_URL=postgresql://... (e rode `prisma migrate deploy`).
+  const dir = process.env.PGLITE_DIR ?? join(process.cwd(), ".pglite");
+  const pg = new PGlite(dir);
+  g.__pg = pg;
+  return new PrismaClient({ adapter: new PrismaPGlite(pg) });
+}
+
+export const prisma = createPrisma();
+// Cacheia no globalThis SEMPRE (inclusive em produção): com PGlite como datastore
+// de runtime, o Next separa páginas e route handlers em chunks distintos; sem o
+// cache global cada chunk criaria seu próprio PGlite e só um seria migrado.
+g.prisma = prisma;
+
+/**
+ * Garante que o banco está pronto (migration + seed). No-op fora do modo pglite.
+ * Memoizado: roda uma única vez por processo. Chame no topo de cada page/action.
+ */
+export function ensureDb(): Promise<void> {
+  g.__dbReady ??= (async () => {
+    const pg = g.__pg;
+    if (!pg) return; // postgres real ou client injetado → nada a fazer aqui
+
+    const exists = await pg.query<{ t: string | null }>(
+      `SELECT to_regclass('public."Organization"') AS t`,
+    );
+    if (!exists.rows[0]?.t) {
+      const sql = readFileSync(join(process.cwd(), "prisma/migrations/00000000000000_init/migration.sql"), "utf8");
+      await pg.exec(sql);
+    }
+
+    const { seedReference } = await import("./seed-bootstrap");
+    await seedReference(prisma);
+
+    // Tenant de demonstração + cenário (só se o banco estiver vazio).
+    if ((await prisma.organization.count()) === 0) {
+      const { seedDemoTenant } = await import("./seed-bootstrap");
+      await seedDemoTenant(prisma);
+    }
+  })();
+  return g.__dbReady;
+}

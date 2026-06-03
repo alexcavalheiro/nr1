@@ -1,0 +1,1266 @@
+// =============================================================================
+// Plataforma Integrada de Saúde Organizacional e Conformidade NR-1
+// Schema de dados — Prisma 6 + PostgreSQL
+//
+// Convenções:
+//  - Multi-tenant: quase tudo pendura em organizationId (isolamento por empresa).
+//  - Soft-tenancy: o tenant raiz é Organization; usuários da consultoria/super
+//    admin acessam várias orgs via Membership.
+//  - Datas em UTC; campos createdAt/updatedAt em todas as tabelas de domínio.
+//  - Escalas NR-1 (1..5) guardadas como Int validado na aplicação + enums de
+//    classificação derivada persistidos para histórico/auditoria.
+// =============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// =============================================================================
+// NÚCLEO: TENANT, USUÁRIOS, ESTRUTURA ORGANIZACIONAL
+// =============================================================================
+
+model Organization {
+  id           String   @id @default(cuid())
+  name         String
+  legalName    String?
+  cnpj         String?  @unique
+  industry     String?
+  employeeCount Int?
+  logoUrl      String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  departments     Department[]
+  memberships     Membership[]
+  surveys         Survey[]
+  risks           Risk[]
+  actionPlans     ActionPlan[]
+  manifestations  Manifestation[]
+  indicators      IndicatorSnapshot[]
+  alerts          Alert[]
+  learningTracks  LearningTrack[]
+  feedPosts       FeedPost[]
+  campaigns       Campaign[]
+  generatedDocs   GeneratedDocument[]
+  auditLogs       AuditLog[]
+  riskMatrix      RiskMatrixConfig?
+  // Módulo 8 — IA, automações e inteligência organizacional
+  integrations    Integration[]
+  automationFlows AutomationFlow[]
+  systemEvents    SystemEvent[]
+  webhooks        WebhookEndpoint[]
+  aiAgents        AiAgent[]
+  aiConversations AiConversation[]
+  aiInsights      AiInsight[]
+  execSummaries   ExecutiveSummary[]
+
+  @@index([active])
+}
+
+// Setor / área / unidade — base do heatmap organizacional e do recorte de riscos.
+model Department {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  parentId       String?  // hierarquia (diretoria > gerência > equipe)
+  costCenter     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Department?  @relation("DeptHierarchy", fields: [parentId], references: [id])
+  children     Department[] @relation("DeptHierarchy")
+  memberships  Membership[]
+  risks        Risk[]
+
+  @@index([organizationId])
+  @@index([parentId])
+}
+
+// Conta global de pessoa. Login único; acesso a 1..N organizações via Membership.
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String?
+  avatarUrl     String?
+  emailVerified DateTime?
+  active        Boolean  @default(true)
+  // LGPD: anonimização em vez de DELETE — preserva integridade de respostas/
+  // evidências históricas enquanto remove a identificação do titular.
+  anonymizedAt  DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  memberships         Membership[]
+  surveyResponses     SurveyResponse[]
+  manifestations      Manifestation[]    @relation("Author")
+  assignedManifests   Manifestation[]    @relation("Handler")
+  contentProgress     ContentProgress[]
+  ownedActionPlans    ActionPlan[]       @relation("ActionOwner")
+  evidences           ActionEvidence[]
+  feedPosts           FeedPost[]
+  auditLogs           AuditLog[]
+  consents            Consent[]
+  dataRequests        DataSubjectRequest[]
+}
+
+// Vínculo usuário↔organização, carregando o PERFIL (papel) dentro daquela empresa.
+model Membership {
+  id             String   @id @default(cuid())
+  userId         String
+  organizationId String
+  departmentId   String?
+  role           Role
+  jobTitle       String?
+  isLeader       Boolean  @default(false)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id])
+
+  @@unique([userId, organizationId])
+  @@index([organizationId, role])
+  @@index([departmentId])
+}
+
+enum Role {
+  SUPER_ADMIN   // Super Administrador (provedor da plataforma)
+  CONSULTANT    // Consultor NR-1
+  COMPANY_ADMIN // Gestor da Empresa
+  HR            // RH
+  LEADER        // Líder
+  EMPLOYEE      // Colaborador
+  AUDITOR       // Auditor (somente leitura + evidências)
+}
+
+// =============================================================================
+// MÓDULO 1 — DESENVOLVIMENTO SOCIOEMOCIONAL UNIVERSAL
+// =============================================================================
+
+model LearningTrack {
+  id             String   @id @default(cuid())
+  organizationId String?  // null = trilha global da plataforma
+  title          String
+  description    String?
+  theme          LearningTheme
+  coverUrl       String?
+  published      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization?     @relation(fields: [organizationId], references: [id])
+  contents     LearningContent[]
+
+  @@index([organizationId])
+  @@index([theme])
+}
+
+model LearningContent {
+  id          String       @id @default(cuid())
+  trackId     String?
+  title       String
+  description String?
+  type        ContentType
+  theme       LearningTheme
+  mediaUrl    String?
+  durationSec Int?
+  order       Int          @default(0) // posição dentro da trilha
+  published   Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  track    LearningTrack?    @relation(fields: [trackId], references: [id])
+  progress ContentProgress[]
+
+  @@index([trackId])
+  @@index([type])
+}
+
+// Participação / engajamento / conclusão / evolução (indicadores do Módulo 1).
+model ContentProgress {
+  id              String    @id @default(cuid())
+  contentId       String
+  userId          String
+  status          ProgressStatus @default(NOT_STARTED)
+  progressPercent Int       @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  lastInteraction DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  content LearningContent @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([contentId, userId])
+  @@index([userId, status])
+}
+
+enum ContentType {
+  VIDEO
+  PODCAST
+  EBOOK
+  LEARNING_PILL // pílula de aprendizagem
+  TRACK         // contêiner de trilha
+}
+
+enum LearningTheme {
+  EMOTIONAL_INTELLIGENCE
+  STRESS_MANAGEMENT
+  COMMUNICATION
+  LEADERSHIP
+  MENTAL_HEALTH
+  RESILIENCE
+  PSYCHOLOGICAL_SAFETY
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+// =============================================================================
+// MÓDULO 2 — IDENTIFICAÇÃO E MAPEAMENTO DOS RISCOS (Fase 1 NR-1)
+// Instrumentos de coleta: pesquisas, questionários, checklists, entrevistas.
+// =============================================================================
+
+// Survey é o CONTÊINER LÓGICO (a "pesquisa de clima Q2", p.ex.).
+// A estrutura de perguntas vive em SurveyVersion — cada publicação congela uma
+// versão imutável, e as respostas apontam para a versão respondida. Editar um
+// questionário cria nova versão; respostas antigas continuam íntegras.
+model Survey {
+  id               String     @id @default(cuid())
+  organizationId   String
+  title            String
+  description      String?
+  type             SurveyType
+  anonymous        Boolean    @default(true) // crítico p/ escuta ativa e denúncias
+  status           SurveyStatus @default(DRAFT)
+  currentVersionId String?    @unique // versão vigente (a que está aberta p/ resposta)
+  startsAt         DateTime?
+  endsAt           DateTime?
+  // LGPD: finalidade do tratamento e base legal desta coleta de dados sensíveis.
+  dataPurpose      String?
+  legalBasis       LegalBasis @default(LEGAL_OBLIGATION)
+  retentionUntil   DateTime?  // expurgo/anonimização programada
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  currentVersion SurveyVersion?   @relation("CurrentVersion", fields: [currentVersionId], references: [id])
+  versions       SurveyVersion[]  @relation("SurveyVersions")
+  responses      SurveyResponse[]
+
+  @@index([organizationId, type])
+  @@index([status])
+}
+
+// Snapshot imutável da estrutura da pesquisa no momento da publicação.
+model SurveyVersion {
+  id          String        @id @default(cuid())
+  surveyId    String
+  version     Int           // 1, 2, 3... incremental por Survey
+  status      VersionStatus @default(DRAFT)
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  survey       Survey           @relation("SurveyVersions", fields: [surveyId], references: [id], onDelete: Cascade)
+  currentOf    Survey?          @relation("CurrentVersion")
+  questions    SurveyQuestion[]
+  responses    SurveyResponse[]
+
+  @@unique([surveyId, version])
+  @@index([surveyId])
+}
+
+model SurveyQuestion {
+  id              String       @id @default(cuid())
+  surveyVersionId String       // pergunta pertence a uma VERSÃO, não ao Survey
+  text            String
+  type            QuestionType
+  required        Boolean      @default(true)
+  order           Int          @default(0)
+  options         Json?        // alternativas p/ múltipla escolha/escala (rótulos)
+  riskCategoryId  String?      // mapeia a pergunta a um risco psicossocial monitorado
+  createdAt       DateTime     @default(now())
+
+  version      SurveyVersion @relation(fields: [surveyVersionId], references: [id], onDelete: Cascade)
+  riskCategory RiskCategory? @relation(fields: [riskCategoryId], references: [id])
+  answers      SurveyAnswer[]
+
+  @@index([surveyVersionId])
+}
+
+model SurveyResponse {
+  id              String   @id @default(cuid())
+  surveyId        String   // denormalizado p/ consulta por pesquisa (multi-tenant)
+  surveyVersionId String   // versão exata que a pessoa respondeu
+  userId          String?  // null quando anônima
+  departmentId    String?  // recorte para heatmap mesmo em respostas anônimas
+  submittedAt     DateTime @default(now())
+  sentimentScore  Float?   // análise de sentimento (NLP) das respostas abertas
+  sentimentLabel  SentimentLabel? // classificação derivada pela IA
+
+  survey      Survey         @relation(fields: [surveyId], references: [id], onDelete: Cascade)
+  version     SurveyVersion  @relation(fields: [surveyVersionId], references: [id])
+  user        User?          @relation(fields: [userId], references: [id])
+  answers     SurveyAnswer[]
+  riskSources RiskSource[]   // quando esta resposta fundamenta um risco no inventário
+
+  @@index([surveyId])
+  @@index([surveyVersionId])
+  @@index([departmentId])
+}
+
+enum VersionStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model SurveyAnswer {
+  id          String   @id @default(cuid())
+  responseId  String
+  questionId  String
+  valueNumber Float?   // escala Likert / nota
+  valueText   String?  // resposta aberta
+  valueOption String?  // alternativa escolhida
+
+  response SurveyResponse @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  question SurveyQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([responseId])
+  @@index([questionId])
+}
+
+enum SurveyType {
+  CLIMATE          // pesquisa de clima
+  EMOTIONAL_HEALTH // saúde emocional
+  PSYCHOSOCIAL     // questionário psicossocial
+  LEADERSHIP_EVAL  // avaliação de lideranças
+  STRUCTURED_INTERVIEW
+  ENVIRONMENT_CHECKLIST // checklist de ambiente
+  PULSE            // pesquisa pulse
+}
+
+enum SurveyStatus {
+  DRAFT
+  OPEN
+  CLOSED
+  ARCHIVED
+}
+
+enum QuestionType {
+  LIKERT_5
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  OPEN_TEXT
+  YES_NO
+  SCALE_0_10
+}
+
+// Catálogo dos riscos psicossociais monitorados (assédio, burnout, etc.).
+// Tabela de referência — semeada via seed, reaproveitada por toda a org.
+model RiskCategory {
+  id          String  @id @default(cuid())
+  code        RiskCode @unique
+  name        String
+  description String?
+
+  questions SurveyQuestion[]
+  risks     Risk[]
+}
+
+enum RiskCode {
+  MORAL_HARASSMENT       // assédio moral
+  SEXUAL_HARASSMENT      // assédio sexual
+  OVERLOAD               // sobrecarga
+  BURNOUT
+  EXCESSIVE_PRESSURE     // pressão excessiva
+  INTERPERSONAL_CONFLICT // conflitos interpessoais
+  EXCESSIVE_HOURS        // jornadas excessivas
+  TOXIC_LEADERSHIP       // liderança tóxica
+  AGGRESSIVE_COMMUNICATION
+  LACK_OF_RECOGNITION    // falta de reconhecimento
+  PSYCHOLOGICAL_INSECURITY
+}
+
+// =============================================================================
+// RISCO — entidade central que percorre os Módulos 2→7.
+// Um Risk nasce no inventário (M2), recebe avaliação (M3), priorização (M4),
+// planos de ação (M5) e é monitorado/reavaliado (M6) e documentado (M7).
+// =============================================================================
+
+model Risk {
+  id             String   @id @default(cuid())
+  organizationId String
+  departmentId   String?  // localização no heatmap; null = risco corporativo
+  categoryId     String
+  title          String
+  description    String?
+  source         String?  // de onde veio: pesquisa X, denúncia Y, checklist...
+  status         RiskStatus @default(IDENTIFIED)
+  identifiedAt   DateTime @default(now())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  department   Department?      @relation(fields: [departmentId], references: [id])
+  category     RiskCategory     @relation(fields: [categoryId], references: [id])
+  assessments  RiskAssessment[]
+  prioritization RiskPrioritization?
+  actionPlans  ActionPlan[]
+  sources      RiskSource[]     // evidências que originaram/fundamentam o risco
+  aiInsights   AiInsight[]      // detecções/recomendações de IA sobre este risco
+
+  @@index([organizationId, status])
+  @@index([departmentId])
+  @@index([categoryId])
+}
+
+// Rastreabilidade: de onde veio cada risco. Um risco pode ter várias fontes
+// (uma pesquisa + uma denúncia, p.ex.), sustentando a defensabilidade no GRO.
+model RiskSource {
+  id               String         @id @default(cuid())
+  riskId           String
+  type             RiskSourceType
+  surveyResponseId String?        // origem: resposta de pesquisa
+  surveyId         String?        // origem: pesquisa agregada (sem resposta única)
+  manifestationId  String?        // origem: denúncia/manifestação da escuta ativa
+  description      String?
+  createdAt        DateTime       @default(now())
+
+  risk           Risk            @relation(fields: [riskId], references: [id], onDelete: Cascade)
+  surveyResponse SurveyResponse? @relation(fields: [surveyResponseId], references: [id])
+  manifestation  Manifestation?  @relation(fields: [manifestationId], references: [id])
+
+  @@index([riskId])
+  @@index([surveyId])
+  @@index([manifestationId])
+}
+
+enum RiskSourceType {
+  SURVEY        // pesquisa de clima / psicossocial / pulse
+  MANIFESTATION // denúncia, pedido de ajuda
+  CHECKLIST     // checklist de ambiente
+  INTERVIEW     // entrevista estruturada
+  LEADERSHIP_EVAL
+  AUDIT
+  MANUAL        // inserção manual pelo consultor
+}
+
+enum RiskStatus {
+  IDENTIFIED   // M2
+  ASSESSED     // M3
+  PRIORITIZED  // M4
+  IN_TREATMENT // M5
+  MONITORED    // M6
+  CLOSED
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 3 — AVALIAÇÃO (Fase 2): probabilidade × impacto → classificação.
+// Histórico: cada reavaliação (M6) gera um novo registro; o mais recente vale.
+// ---------------------------------------------------------------------------
+model RiskAssessment {
+  id             String   @id @default(cuid())
+  riskId         String
+  probability    Int      // 1..5  (Muito Baixa → Muito Alta)
+  impact         Int      // 1..5  (Muito Baixo → Crítico)
+  score          Int      // probability * impact (denormalizado p/ ordenação)
+  classification RiskLevel
+  assessedById   String?
+  assessedAt     DateTime @default(now())
+  notes          String?
+  isCurrent      Boolean  @default(true) // marca a avaliação vigente
+
+  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([riskId, isCurrent])
+}
+
+enum RiskLevel {
+  LOW       // Baixo
+  MODERATE  // Moderado
+  HIGH      // Alto
+  CRITICAL  // Crítico
+}
+
+// Configuração da matriz 5x5 por organização: faixas de score → classificação.
+// Permite que cada empresa/consultor ajuste os cortes mantendo rastreabilidade.
+model RiskMatrixConfig {
+  id             String @id @default(cuid())
+  organizationId String @unique
+  // faixas de corte do score (prob*impacto, 1..25)
+  lowMax         Int    @default(4)
+  moderateMax    Int    @default(9)
+  highMax        Int    @default(16)
+  // acima de highMax => CRITICAL
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 4 — PRIORIZAÇÃO (Fase 3): critérios ponderados → ranking.
+// ---------------------------------------------------------------------------
+model RiskPrioritization {
+  id               String   @id @default(cuid())
+  riskId           String   @unique
+  severity         Int      // 1..5
+  frequency        Int      // 1..5
+  financialImpact  Int      // 1..5
+  humanImpact      Int      // 1..5
+  legalImpact      Int      // 1..5
+  priorityScore    Float    // composto ponderado (calculado na aplicação)
+  rank             Int?     // posição no ranking da org (recalculado em lote)
+  computedAt       DateTime @default(now())
+
+  risk Risk @relation(fields: [riskId], references: [id], onDelete: Cascade)
+
+  @@index([priorityScore])
+}
+
+// ---------------------------------------------------------------------------
+// MÓDULO 5 — IMPLEMENTAÇÃO DAS MEDIDAS DE CONTROLE (Fase 4): plano de ação.
+// Fluxo: CREATED → APPROVED → IN_PROGRESS → EVIDENCED → CLOSED
+// ---------------------------------------------------------------------------
+model ActionPlan {
+  id             String   @id @default(cuid())
+  organizationId String
+  riskId         String?
+  title          String
+  description    String?
+  ownerId        String?  // responsável
+  status         ActionStatus @default(CREATED)
+  dueDate        DateTime?
+  approvedAt     DateTime?
+  closedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  risk         Risk?            @relation(fields: [riskId], references: [id])
+  owner        User?            @relation("ActionOwner", fields: [ownerId], references: [id])
+  evidences    ActionEvidence[]
+  comments     ActionComment[]
+
+  @@index([organizationId, status])
+  @@index([riskId])
+  @@index([dueDate])
+}
+
+model ActionEvidence {
+  id           String   @id @default(cuid())
+  actionPlanId String
+  fileUrl      String
+  fileName     String?
+  description  String?
+  uploadedById String?
+  uploadedAt   DateTime @default(now())
+
+  actionPlan ActionPlan @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+  uploadedBy User?      @relation(fields: [uploadedById], references: [id])
+
+  @@index([actionPlanId])
+}
+
+model ActionComment {
+  id           String   @id @default(cuid())
+  actionPlanId String
+  authorId     String?
+  body         String
+  createdAt    DateTime @default(now())
+
+  actionPlan ActionPlan @relation(fields: [actionPlanId], references: [id], onDelete: Cascade)
+
+  @@index([actionPlanId])
+}
+
+enum ActionStatus {
+  CREATED
+  APPROVED
+  IN_PROGRESS
+  EVIDENCED
+  CLOSED
+  CANCELLED
+}
+
+// =============================================================================
+// MÓDULO 6 — MONITORAMENTO E REAVALIAÇÃO (Fase 5)
+// Snapshots periódicos de indicadores + motor de alertas.
+// =============================================================================
+
+// Série temporal de indicadores por organização (e opcionalmente por setor).
+model IndicatorSnapshot {
+  id             String        @id @default(cuid())
+  organizationId String
+  departmentId   String?
+  type           IndicatorType
+  value          Float
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type, periodEnd])
+  @@index([departmentId])
+}
+
+enum IndicatorType {
+  CLIMATE              // clima organizacional
+  ENGAGEMENT           // engajamento
+  TURNOVER             // rotatividade
+  ABSENTEEISM          // absenteísmo
+  MEDICAL_LEAVE        // afastamentos
+  PARTICIPATION        // participação
+  // índices compostos do Dashboard de Saúde Organizacional:
+  ORG_HEALTH_INDEX     // índice de saúde organizacional
+  PSYCHOSOCIAL_RISK_INDEX
+  LEADERSHIP_INDEX
+}
+
+model Alert {
+  id             String     @id @default(cuid())
+  organizationId String
+  type           AlertType
+  severity       RiskLevel  @default(MODERATE)
+  title          String
+  message        String?
+  relatedRiskId  String?
+  relatedPlanId  String?
+  resolved       Boolean    @default(false)
+  resolvedAt     DateTime?
+  createdAt      DateTime   @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, resolved])
+  @@index([type])
+}
+
+enum AlertType {
+  CRITICAL_RISK        // risco crítico
+  ENGAGEMENT_DROP      // queda de engajamento
+  COMPLAINTS_RISE      // aumento de denúncias
+  LOW_ADOPTION         // baixa adesão
+  OVERDUE_PLAN         // plano vencido
+}
+
+// =============================================================================
+// MÓDULO 7 — DOCUMENTAÇÃO E INTEGRAÇÃO AO GRO (Fase 6)
+// Documentos gerados (inventário, relatório NR-1, etc.) + auditoria.
+// =============================================================================
+
+model GeneratedDocument {
+  id             String       @id @default(cuid())
+  organizationId String
+  type           DocumentType
+  format         ExportFormat
+  fileUrl        String?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  generatedById  String?
+  generatedAt    DateTime     @default(now())
+  payload        Json?        // snapshot dos dados que originaram o documento
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+}
+
+enum DocumentType {
+  RISK_INVENTORY       // inventário de riscos
+  NR1_REPORT           // relatório NR-1
+  ASSESSMENT_HISTORY   // histórico de avaliações
+  EVIDENCE_PACKAGE     // evidências
+  CONSOLIDATED_PLAN    // plano consolidado
+}
+
+enum ExportFormat {
+  PDF
+  XLSX
+  CSV
+}
+
+// Trilha de auditoria — essencial para compliance e o perfil Auditor.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  actorId        String?
+  action         String   // ex: "risk.assessed", "plan.approved"
+  entityType     String   // ex: "Risk", "ActionPlan"
+  entityId       String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  actor        User?         @relation(fields: [actorId], references: [id])
+
+  @@index([organizationId, createdAt])
+  @@index([entityType, entityId])
+}
+
+// =============================================================================
+// ESCUTA ATIVA E INTELIGÊNCIA DE RELACIONAMENTO
+// Canal único de manifestações (denúncia, sugestão, ajuda, reconhecimento).
+// =============================================================================
+
+model Manifestation {
+  id             String            @id @default(cuid())
+  organizationId String
+  type           ManifestationType
+  anonymous      Boolean           @default(false)
+  authorId       String?           // null quando anônima
+  handlerId      String?           // quem está tratando (RH/Consultor)
+  departmentId   String?
+  subject        String?
+  body           String
+  status         ManifestationStatus @default(OPEN)
+  sentimentScore Float?            // análise de sentimento
+  sentimentLabel SentimentLabel?   // classificação derivada pela IA
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User?        @relation("Author", fields: [authorId], references: [id])
+  handler      User?        @relation("Handler", fields: [handlerId], references: [id])
+  riskSources  RiskSource[] // quando a manifestação fundamenta um risco no inventário
+
+  @@index([organizationId, type, status])
+}
+
+enum ManifestationType {
+  COMPLAINT       // denúncia
+  SUGGESTION      // sugestão
+  HELP_REQUEST    // pedido de ajuda
+  RECOGNITION     // reconhecimento
+}
+
+enum ManifestationStatus {
+  OPEN
+  IN_REVIEW
+  RESOLVED
+  ARCHIVED
+}
+
+// =============================================================================
+// HUB DE CONVIVÊNCIA E ATUALIZAÇÃO
+// Feed corporativo, stories, comunicados, campanhas, notificações push.
+// =============================================================================
+
+model FeedPost {
+  id             String     @id @default(cuid())
+  organizationId String
+  authorId       String?
+  type           FeedType
+  title          String?
+  body           String?
+  mediaUrl       String?
+  expiresAt      DateTime?  // stories (efêmeros)
+  publishedAt    DateTime   @default(now())
+  createdAt      DateTime   @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  author       User?        @relation(fields: [authorId], references: [id])
+
+  @@index([organizationId, type, publishedAt])
+}
+
+enum FeedType {
+  POST          // feed corporativo
+  STORY         // stories
+  SHORT_VIDEO   // vídeos curtos
+  ANNOUNCEMENT  // comunicados
+}
+
+model Campaign {
+  id             String   @id @default(cuid())
+  organizationId String
+  title          String
+  description    String?
+  startsAt       DateTime?
+  endsAt         DateTime?
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([organizationId, active])
+}
+
+model Notification {
+  id             String   @id @default(cuid())
+  organizationId String
+  campaignId     String?
+  userId         String?  // null = broadcast
+  title          String
+  body           String?
+  channel        NotificationChannel @default(PUSH)
+  readAt         DateTime?
+  sentAt         DateTime @default(now())
+
+  campaign Campaign? @relation(fields: [campaignId], references: [id])
+
+  @@index([organizationId, userId])
+}
+
+enum NotificationChannel {
+  PUSH
+  IN_APP
+  EMAIL
+}
+
+// =============================================================================
+// LGPD — CONSENTIMENTO, BASE LEGAL E DIREITOS DO TITULAR
+// Dados de saúde mental são "dados pessoais sensíveis" (LGPD art. 5º, II).
+// Tratamento exige base legal explícita e trilha de consentimento versionada.
+// =============================================================================
+
+// Texto/política de privacidade versionado. Toda coleta referencia a versão
+// aceita pelo titular — auditável a qualquer momento.
+model ConsentPolicy {
+  id          String   @id @default(cuid())
+  version     String   // ex: "2026.1"
+  purpose     ConsentPurpose
+  title       String
+  body        String   // texto integral apresentado ao titular
+  effectiveAt DateTime
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  consents Consent[]
+
+  @@unique([purpose, version])
+  @@index([purpose, active])
+}
+
+// Registro do aceite (ou revogação) de um titular para uma finalidade/versão.
+model Consent {
+  id              String        @id @default(cuid())
+  userId          String
+  organizationId  String?       // null = consentimento de plataforma
+  policyId        String
+  purpose         ConsentPurpose
+  status          ConsentStatus @default(GRANTED)
+  grantedAt       DateTime      @default(now())
+  revokedAt       DateTime?
+  ipAddress       String?       // evidência do aceite
+  userAgent       String?
+
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  policy ConsentPolicy @relation(fields: [policyId], references: [id])
+
+  @@index([userId, purpose])
+  @@index([organizationId])
+}
+
+// Solicitação do titular (acesso, exclusão, correção, portabilidade...).
+model DataSubjectRequest {
+  id             String            @id @default(cuid())
+  userId         String
+  organizationId String?
+  type           DataRequestType
+  status         DataRequestStatus @default(RECEIVED)
+  details        String?
+  requestedAt    DateTime          @default(now())
+  dueAt          DateTime?         // prazo legal de atendimento
+  completedAt    DateTime?
+  resultUrl      String?           // p/ portabilidade/acesso: arquivo gerado
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+}
+
+// Base legal do tratamento (LGPD art. 7º / art. 11 p/ dados sensíveis).
+enum LegalBasis {
+  CONSENT           // consentimento do titular
+  LEGAL_OBLIGATION  // cumprimento de obrigação legal (NR-1!)
+  LEGITIMATE_INTEREST
+  HEALTH_PROTECTION // tutela da saúde (art. 11, II, "f")
+  CONTRACT
+}
+
+enum ConsentPurpose {
+  PSYCHOSOCIAL_ASSESSMENT // participação em pesquisas psicossociais
+  SENTIMENT_ANALYSIS      // processamento de respostas abertas (NLP)
+  HEALTH_DATA_PROCESSING  // tratamento de dados de saúde mental
+  COMMUNICATIONS          // comunicados/campanhas/push
+  DATA_SHARING            // compartilhamento com consultoria NR-1
+}
+
+enum ConsentStatus {
+  GRANTED
+  REVOKED
+}
+
+enum DataRequestType {
+  ACCESS        // confirmação e acesso aos dados
+  DELETION      // eliminação / anonimização
+  RECTIFICATION // correção
+  PORTABILITY   // portabilidade
+  OBJECTION     // oposição ao tratamento
+  INFO          // informação sobre uso e compartilhamento
+}
+
+enum DataRequestStatus {
+  RECEIVED
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+// =============================================================================
+// MÓDULO 8 — IA, AUTOMAÇÕES E INTELIGÊNCIA ORGANIZACIONAL
+// =============================================================================
+
+// -----------------------------------------------------------------------------
+// CENTRAL DE INTEGRAÇÕES — conectores nativos (n8n, LLMs, mensageria, BI...).
+// -----------------------------------------------------------------------------
+model Integration {
+  id             String              @id @default(cuid())
+  organizationId String
+  provider       IntegrationProvider
+  displayName    String?
+  status         IntegrationStatus   @default(PENDING)
+  config         Json?               // parâmetros não sensíveis (canais, IDs)
+  credentials    Json?               // tokens/segredos — cifrar na aplicação (KMS/vault)
+  lastSyncAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, provider])
+  @@index([status])
+}
+
+enum IntegrationProvider {
+  N8N
+  OPENAI
+  CLAUDE
+  GEMINI
+  MS_COPILOT
+  WHATSAPP_BUSINESS
+  MS_TEAMS
+  SLACK
+  GOOGLE_WORKSPACE
+  OUTLOOK
+  POWER_BI
+  LOOKER_STUDIO
+  ZAPIER
+  MAKE
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+// -----------------------------------------------------------------------------
+// EVENTOS DE SISTEMA — barramento que alimenta automações e webhooks (n8n).
+// Toda mudança relevante de negócio publica um SystemEvent.
+// -----------------------------------------------------------------------------
+model SystemEvent {
+  id             String          @id @default(cuid())
+  organizationId String
+  type           SystemEventType
+  entityType     String?         // ex: "Risk", "Manifestation"
+  entityId       String?
+  payload        Json?
+  dispatchedAt   DateTime?       // quando foi propagado a webhooks/fluxos
+  createdAt      DateTime        @default(now())
+
+  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  automationRuns   AutomationRun[]
+  webhookDeliveries WebhookDelivery[]
+
+  @@index([organizationId, type, createdAt])
+}
+
+enum SystemEventType {
+  NEW_SURVEY        // nova pesquisa
+  NEW_MANIFESTATION // nova denúncia
+  NEW_RISK          // novo risco
+  RISK_CHANGED      // alteração de risco
+  OVERDUE_PLAN      // plano vencido
+  NEW_EMPLOYEE      // novo colaborador
+  INDICATOR_CHANGE  // mudança de indicador
+  CRITICAL_RISK_DETECTED
+}
+
+// -----------------------------------------------------------------------------
+// ORQUESTRADOR DE AUTOMAÇÕES — fluxos "Quando X → Então Y" (no-code).
+// -----------------------------------------------------------------------------
+model AutomationFlow {
+  id             String          @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  triggerEvent   SystemEventType
+  conditions     Json?           // filtros adicionais (ex: severity == CRITICAL)
+  enabled        Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  actions      AutomationAction[]
+  runs         AutomationRun[]
+
+  @@index([organizationId, triggerEvent, enabled])
+}
+
+model AutomationAction {
+  id      String               @id @default(cuid())
+  flowId  String
+  order   Int                  @default(0)
+  type    AutomationActionType
+  config  Json?                // alvo da ação (quem notificar, qual agente, etc.)
+
+  flow AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+}
+
+enum AutomationActionType {
+  NOTIFY_HR           // notificar RH
+  NOTIFY_MANAGER      // notificar gestor
+  CREATE_ACTION_PLAN  // criar plano de ação
+  REGISTER_INCIDENT   // registrar ocorrência
+  TRIGGER_AI_AGENT    // acionar agente de IA
+  CLASSIFY            // classificar (denúncia, sentimento)
+  CREATE_PROTOCOL     // criar protocolo
+  WRITE_AUDIT_LOG     // registrar auditoria
+  SEND_ALERT          // enviar alerta
+  ESCALATE            // escalar para gestor
+  UPDATE_DASHBOARD    // atualizar dashboard
+  CALL_WEBHOOK        // disparar webhook externo
+  CALL_INTEGRATION    // acionar integração (Slack, WhatsApp, n8n...)
+}
+
+model AutomationRun {
+  id          String    @id @default(cuid())
+  flowId      String
+  eventId     String?   // evento que disparou o fluxo
+  status      RunStatus @default(PENDING)
+  input       Json?
+  output      Json?
+  error       String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+
+  flow  AutomationFlow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  event SystemEvent?   @relation(fields: [eventId], references: [id])
+
+  @@index([flowId, status])
+}
+
+enum RunStatus {
+  PENDING
+  RUNNING
+  SUCCESS
+  FAILED
+}
+
+// -----------------------------------------------------------------------------
+// WEBHOOKS — n8n/Zapier/Make assinam eventos sem necessidade de programação.
+// -----------------------------------------------------------------------------
+model WebhookEndpoint {
+  id             String            @id @default(cuid())
+  organizationId String
+  url            String
+  secret         String?           // assinatura HMAC do payload
+  events         SystemEventType[] // eventos assinados (array nativo do Postgres)
+  active         Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deliveries   WebhookDelivery[]
+
+  @@index([organizationId, active])
+}
+
+model WebhookDelivery {
+  id           String   @id @default(cuid())
+  endpointId   String
+  eventId      String?
+  status       RunStatus @default(PENDING)
+  responseCode Int?
+  attempts     Int      @default(0)
+  payload      Json?
+  createdAt    DateTime @default(now())
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+  event    SystemEvent?    @relation(fields: [eventId], references: [id])
+
+  @@index([endpointId, status])
+}
+
+// -----------------------------------------------------------------------------
+// AGENTES DE IA — NR-1, Saúde Organizacional, RH, Executivo, Assistente, Copiloto.
+// -----------------------------------------------------------------------------
+model AiAgent {
+  id             String      @id @default(cuid())
+  organizationId String?     // null = agente padrão da plataforma
+  type           AiAgentType
+  name           String
+  provider       AiProvider  @default(CLAUDE)
+  model          String?     // ex: "claude-opus-4-8"
+  systemPrompt   String?
+  config         Json?       // temperatura, ferramentas habilitadas, etc.
+  enabled        Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  organization  Organization?    @relation(fields: [organizationId], references: [id])
+  conversations AiConversation[]
+  insights      AiInsight[]
+  summaries     ExecutiveSummary[]
+
+  @@index([organizationId, type])
+}
+
+enum AiAgentType {
+  NR1            // Agente NR-1 (requisitos legais, auditorias)
+  ORG_HEALTH     // Agente de Saúde Organizacional
+  HR             // Agente de RH
+  EXECUTIVE      // Agente Executivo
+  ASSISTANT      // Assistente virtual (chat interno)
+  COPILOT_NR1    // Copiloto NR-1
+}
+
+enum AiProvider {
+  OPENAI
+  CLAUDE
+  GEMINI
+  MS_COPILOT
+}
+
+// -----------------------------------------------------------------------------
+// ASSISTENTE / COPILOTO — histórico de conversas em linguagem natural.
+// "Quais áreas têm maior risco?", "Quais planos estão vencidos?"...
+// -----------------------------------------------------------------------------
+model AiConversation {
+  id             String   @id @default(cuid())
+  organizationId String
+  agentId        String?
+  userId         String?
+  title          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        AiAgent?     @relation(fields: [agentId], references: [id])
+  messages     AiMessage[]
+
+  @@index([organizationId, userId])
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           AiRole
+  content        String
+  tokens         Int?
+  citations      Json?    // fontes/dados usados na resposta (rastreabilidade)
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+enum AiRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+// -----------------------------------------------------------------------------
+// INSIGHTS DE IA — análise de riscos, padrões, tendências, sentimento, recomend.
+// Produzidos pelos agentes sobre pesquisas, denúncias, escuta, indicadores.
+// -----------------------------------------------------------------------------
+model AiInsight {
+  id             String        @id @default(cuid())
+  organizationId String
+  agentId        String?
+  type           AiInsightType
+  scope          String?       // ex: "departamento:Comercial", "últimos 90 dias"
+  summary        String
+  detail         Json?         // evidências, gráficos, dados de apoio
+  severity       RiskLevel?
+  confidence     Float?        // 0..1
+  relatedRiskId  String?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  createdAt      DateTime      @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        AiAgent?     @relation(fields: [agentId], references: [id])
+  risk         Risk?        @relation(fields: [relatedRiskId], references: [id])
+
+  @@index([organizationId, type, createdAt])
+  @@index([relatedRiskId])
+}
+
+enum AiInsightType {
+  RISK_DETECTION  // burnout, sobrecarga, assédio, liderança tóxica, conflitos...
+  PATTERN         // detecção de padrões
+  TREND           // tendências
+  SENTIMENT       // análise de sentimento agregada
+  RECOMMENDATION  // sugestão de melhoria/ação
+}
+
+// -----------------------------------------------------------------------------
+// RESUMOS EXECUTIVOS AUTOMÁTICOS — semanais, mensais, trimestrais, auditoria.
+// -----------------------------------------------------------------------------
+model ExecutiveSummary {
+  id             String         @id @default(cuid())
+  organizationId String
+  agentId        String?
+  cadence        SummaryCadence
+  title          String?
+  content        String         // texto em linguagem executiva
+  highlights     Json?          // bullets/indicadores-chave estruturados
+  periodStart    DateTime
+  periodEnd      DateTime
+  generatedAt    DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  agent        AiAgent?     @relation(fields: [agentId], references: [id])
+
+  @@index([organizationId, cadence, periodEnd])
+}
+
+enum SummaryCadence {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  AUDIT
+}
+
+// Classificação de sentimento aplicada por IA (comentários, pesquisas, escuta).
+enum SentimentLabel {
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  CRITICAL
+}
