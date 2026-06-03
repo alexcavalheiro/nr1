@@ -11,7 +11,7 @@ import {
 
 export type ShellKey =
   | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
-  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users";
+  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users" | "account";
 
 const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean }[] = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
@@ -62,13 +62,13 @@ export async function AppShell({
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div className="side-user">
+          <Link href="/account" className="side-user" title="Minha conta">
             <div className="avatar">{initials(session.name)}</div>
             <div className="meta">
               <div className="name">{session.name}</div>
               <div className="role">{ROLE_LABEL[session.role] ?? session.role}</div>
             </div>
-          </div>
+          </Link>
           <form action={logout}><button className="btn-ghost" style={{ width: "100%", marginTop: 6 }} type="submit">Sair</button></form>
         </div>
       </aside>

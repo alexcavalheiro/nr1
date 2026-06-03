@@ -1,22 +1,30 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
 import { listMembers } from "@/src/index";
 import { canManage, requireSession, ROLE_LABEL } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
-import { changeRoleAction, createMemberAction, toggleActiveAction } from "./actions";
+import { changeRoleAction, createMemberAction, resetPasswordAction, toggleActiveAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const ROLES = ["COMPANY_ADMIN", "CONSULTANT", "HR", "LEADER", "EMPLOYEE", "AUDITOR"];
 
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string; error?: string }>;
+}) {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) redirect("/dashboard");
   const members = await listMembers(session.organizationId);
+  const { reset, error } = await searchParams;
 
   return (
     <AppShell session={session} active="users" title="Usuários e perfis" subtitle="Gestão de membros e papéis de acesso" showReport={false}>
+      {reset && <p className="success" style={{ marginBottom: 16 }}>Senha redefinida com sucesso.</p>}
+      {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
       <div className="card" style={{ marginBottom: 20 }}>
         <h2>Adicionar membro</h2>
         <form action={createMemberAction} className="form-row">
@@ -35,7 +43,7 @@ export default async function UsersPage() {
         <h2>Membros ({members.length})</h2>
         <table>
           <thead>
-            <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Status</th><th></th></tr>
+            <tr><th>Nome</th><th>E-mail</th><th>Cargo</th><th>Perfil</th><th>Senha</th><th>Status</th><th></th></tr>
           </thead>
           <tbody>
             {members.map((m) => (
@@ -52,15 +60,25 @@ export default async function UsersPage() {
                     <button className="btn-ghost btn-sm" type="submit">Salvar</button>
                   </form>
                 </td>
+                <td>
+                  <form action={resetPasswordAction} className="form-row">
+                    <input type="hidden" name="id" value={m.id} />
+                    <input name="password" type="text" placeholder="Nova senha" minLength={6} required className="btn-sm" style={{ width: 120, padding: "5px 8px" }} />
+                    <button className="btn-ghost btn-sm" type="submit">Redefinir</button>
+                  </form>
+                </td>
                 <td>{m.active ? <span className="badge LOW">Ativo</span> : <span className="badge CRITICAL">Inativo</span>}</td>
                 <td>
-                  {m.userId !== session.userId && (
-                    <form action={toggleActiveAction}>
-                      <input type="hidden" name="id" value={m.id} />
-                      <input type="hidden" name="active" value={(!m.active).toString()} />
-                      <button className="btn-ghost btn-sm" type="submit">{m.active ? "Desativar" : "Ativar"}</button>
-                    </form>
-                  )}
+                  <div className="form-row">
+                    <Link href={`/users/${m.id}`} className="btn-ghost btn-sm">Editar</Link>
+                    {m.userId !== session.userId && (
+                      <form action={toggleActiveAction}>
+                        <input type="hidden" name="id" value={m.id} />
+                        <input type="hidden" name="active" value={(!m.active).toString()} />
+                        <button className="btn-ghost btn-sm" type="submit">{m.active ? "Desativar" : "Ativar"}</button>
+                      </form>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

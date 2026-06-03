@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
-import { createMember, setMemberActive, updateMemberRole } from "@/src/index";
+import { createMember, resetMemberPassword, setMemberActive, updateMemberProfile, updateMemberRole } from "@/src/index";
 import type { Role } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
 
@@ -37,6 +38,23 @@ export async function createMemberAction(formData: FormData) {
   revalidatePath("/users");
 }
 
+export async function updateMemberAction(formData: FormData) {
+  const s = await guardManage();
+  const id = str(formData, "id");
+  try {
+    await updateMemberProfile(id, s.organizationId, {
+      name: str(formData, "name"),
+      email: str(formData, "email"),
+      jobTitle: str(formData, "jobTitle") || undefined,
+    });
+  } catch (e) {
+    redirect(`/users/${id}?error=${encodeURIComponent((e as Error).message)}`);
+  }
+  revalidatePath("/users");
+  revalidatePath(`/users/${id}`);
+  redirect(`/users/${id}?ok=1`);
+}
+
 export async function changeRoleAction(formData: FormData) {
   const s = await guardManage();
   const id = str(formData, "id");
@@ -51,4 +69,19 @@ export async function toggleActiveAction(formData: FormData) {
   await assertMembership(id, s.organizationId);
   await setMemberActive(id, str(formData, "active") === "true");
   revalidatePath("/users");
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const s = await guardManage();
+  const id = str(formData, "id");
+  // Volta para o detalhe do membro quando acionado de lá; senão para a lista.
+  const base = str(formData, "from") === "detail" ? `/users/${id}` : "/users";
+  try {
+    await resetMemberPassword(id, s.organizationId, str(formData, "password"));
+  } catch (e) {
+    redirect(`${base}?error=${encodeURIComponent((e as Error).message)}`);
+  }
+  revalidatePath("/users");
+  revalidatePath(`/users/${id}`);
+  redirect(`${base}?reset=1`);
 }
