@@ -35,6 +35,8 @@ export {
   createMember,
   updateMemberRole,
   setMemberActive,
+  changeOwnPassword,
+  resetMemberPassword,
 } from "./services/user.service";
 export {
   listFlows,

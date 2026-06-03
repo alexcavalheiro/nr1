@@ -304,6 +304,7 @@ input[type="checkbox"] { accent-color: var(--purple); width: 15px; height: 15px;
 .login-card input { width: 100%; margin: 6px 0 2px; }
 .login-card .btn { width: 100%; margin-top: 20px; }
 .error { color: var(--critical); font-size: 13px; margin: 10px 0; }
+.success { color: var(--low, #16a34a); font-size: 13px; margin: 10px 0; }
 
 /* ============================ REPORT (print) ============================ */
 .report h1 { font-size: 24px; margin-bottom: 4px; }

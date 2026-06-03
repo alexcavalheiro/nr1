@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
-import { createMember, setMemberActive, updateMemberRole } from "@/src/index";
+import { createMember, resetMemberPassword, setMemberActive, updateMemberRole } from "@/src/index";
 import type { Role } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
 
@@ -51,4 +52,16 @@ export async function toggleActiveAction(formData: FormData) {
   await assertMembership(id, s.organizationId);
   await setMemberActive(id, str(formData, "active") === "true");
   revalidatePath("/users");
+}
+
+export async function resetPasswordAction(formData: FormData) {
+  const s = await guardManage();
+  const id = str(formData, "id");
+  try {
+    await resetMemberPassword(id, s.organizationId, str(formData, "password"));
+  } catch (e) {
+    redirect(`/users?error=${encodeURIComponent((e as Error).message)}`);
+  }
+  revalidatePath("/users");
+  redirect("/users?reset=1");
 }
