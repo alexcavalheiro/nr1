@@ -1,33 +1,40 @@
 import { ensureDb, prisma } from "@/src/db";
 import { requireSession, ROLE_LABEL } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
-import { changePasswordAction } from "./actions";
+import { changePasswordAction, updateProfileAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AccountPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; error?: string }>;
+  searchParams: Promise<{ ok?: string; profile?: string; error?: string }>;
 }) {
   await ensureDb();
   const session = await requireSession();
-  const { ok, error } = await searchParams;
-  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { email: true } });
+  const { ok, profile, error } = await searchParams;
+  const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { name: true, email: true } });
 
   return (
     <AppShell session={session} active="account" title="Minha conta" subtitle="Dados de acesso e segurança" showReport={false}>
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h2>Perfil</h2>
-        <p className="stat-label" style={{ margin: "6px 0" }}><strong>Nome:</strong> {session.name}</p>
-        <p className="stat-label" style={{ margin: "6px 0" }}><strong>E-mail:</strong> {user?.email ?? "—"}</p>
-        <p className="stat-label" style={{ margin: "6px 0" }}><strong>Perfil:</strong> {ROLE_LABEL[session.role] ?? session.role}</p>
+      {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
+
+      <div className="card" style={{ marginBottom: 20, maxWidth: 460 }}>
+        <h2>Meus dados</h2>
+        {profile && <p className="success" style={{ marginBottom: 12 }}>Dados atualizados com sucesso.</p>}
+        <form action={updateProfileAction}>
+          <label>Nome</label>
+          <input name="name" defaultValue={user?.name ?? session.name} required />
+          <label>E-mail</label>
+          <input name="email" type="email" defaultValue={user?.email ?? ""} required />
+          <p className="stat-label" style={{ margin: "10px 0 2px" }}><strong>Perfil:</strong> {ROLE_LABEL[session.role] ?? session.role}</p>
+          <button className="btn" type="submit" style={{ marginTop: 12 }}>Salvar dados</button>
+        </form>
       </div>
 
       <div className="card" style={{ maxWidth: 460 }}>
         <h2>Alterar senha</h2>
         {ok && <p className="success" style={{ marginBottom: 12 }}>Senha alterada com sucesso.</p>}
-        {error && <p className="error" style={{ marginBottom: 12 }}>{error}</p>}
         <form action={changePasswordAction}>
           <label>Senha atual</label>
           <input name="current" type="password" required autoComplete="current-password" />

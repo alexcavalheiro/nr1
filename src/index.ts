@@ -33,6 +33,8 @@ export {
 export {
   listMembers,
   createMember,
+  updateMemberProfile,
+  updateOwnProfile,
   updateMemberRole,
   setMemberActive,
   changeOwnPassword,

@@ -2,10 +2,23 @@
 
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { changeOwnPassword } from "@/src/index";
-import { requireSession } from "../lib/auth";
+import { changeOwnPassword, updateOwnProfile } from "@/src/index";
+import { createSession, requireSession } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
+
+export async function updateProfileAction(formData: FormData) {
+  await ensureDb();
+  const session = await requireSession();
+  try {
+    const user = await updateOwnProfile(session.userId, str(formData, "name"), str(formData, "email"));
+    // Atualiza o nome guardado no cookie de sessão para refletir na UI.
+    await createSession({ ...session, name: user.name });
+  } catch (e) {
+    redirect(`/account?error=${encodeURIComponent((e as Error).message)}`);
+  }
+  redirect("/account?profile=1");
+}
 
 export async function changePasswordAction(formData: FormData) {
   await ensureDb();

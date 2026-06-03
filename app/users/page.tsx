@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
 import { listMembers } from "@/src/index";
@@ -68,13 +69,16 @@ export default async function UsersPage({
                 </td>
                 <td>{m.active ? <span className="badge LOW">Ativo</span> : <span className="badge CRITICAL">Inativo</span>}</td>
                 <td>
-                  {m.userId !== session.userId && (
-                    <form action={toggleActiveAction}>
-                      <input type="hidden" name="id" value={m.id} />
-                      <input type="hidden" name="active" value={(!m.active).toString()} />
-                      <button className="btn-ghost btn-sm" type="submit">{m.active ? "Desativar" : "Ativar"}</button>
-                    </form>
-                  )}
+                  <div className="form-row">
+                    <Link href={`/users/${m.id}`} className="btn-ghost btn-sm">Editar</Link>
+                    {m.userId !== session.userId && (
+                      <form action={toggleActiveAction}>
+                        <input type="hidden" name="id" value={m.id} />
+                        <input type="hidden" name="active" value={(!m.active).toString()} />
+                        <button className="btn-ghost btn-sm" type="submit">{m.active ? "Desativar" : "Ativar"}</button>
+                      </form>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
