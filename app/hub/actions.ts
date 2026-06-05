@@ -2,21 +2,22 @@
 
 import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/src/db";
-import { createPost, deletePost, updatePost, writeAudit } from "@/src/index";
+import { createPost, deletePost, requirePermission, updatePost, writeAudit } from "@/src/index";
 import type { FeedType } from "@prisma/client";
 import { canManage, requireSession } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-async function guardManage() {
+async function guardManage(action = "edit") {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) throw new Error("Sem permissão para gerir o feed.");
+  await requirePermission(session, "treinamentos", action);
   return session;
 }
 
 export async function createPostAction(formData: FormData) {
-  const session = await guardManage();
+  const session = await guardManage("create");
   const body = str(formData, "body");
   if (!body) throw new Error("Conteúdo obrigatório.");
   await createPost({
@@ -40,7 +41,7 @@ export async function updatePostAction(formData: FormData) {
 }
 
 export async function deletePostAction(formData: FormData) {
-  const session = await guardManage();
+  const session = await guardManage("delete");
   const id = str(formData, "id");
   await deletePost(id, session.organizationId);
   await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "feed.deleted", entityType: "FeedPost", entityId: id });

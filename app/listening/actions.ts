@@ -7,6 +7,7 @@ import {
   assignManifestation,
   createManifestation,
   createRiskFromManifestation,
+  requirePermission,
   updateManifestationStatus,
 } from "@/src/index";
 import type { ManifestationStatus, ManifestationType } from "@prisma/client";
@@ -14,10 +15,11 @@ import { canManage, requireSession, type Session } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-async function guardManage(): Promise<Session> {
+async function guardManage(action = "edit"): Promise<Session> {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) throw new Error("Sem permissão para esta ação.");
+  await requirePermission(session, "escuta", action);
   return session;
 }
 
