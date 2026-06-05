@@ -22,6 +22,20 @@ async function assertMembership(id: string, organizationId: string) {
   return m;
 }
 
+/** Define (ou limpa) a validade de acesso do vínculo. */
+export async function setAccessExpiryAction(formData: FormData) {
+  const s = await guardManage();
+  await requirePermission(s, "usuarios", "edit");
+  const id = str(formData, "id");
+  await assertMembership(id, s.organizationId);
+  const raw = str(formData, "accessExpiresAt");
+  const accessExpiresAt = raw ? new Date(raw) : null;
+  await prisma.membership.update({ where: { id }, data: { accessExpiresAt } });
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "user.access_expiry_set", entityType: "Membership", entityId: id, metadata: { accessExpiresAt: accessExpiresAt?.toISOString() ?? null } });
+  revalidatePath(`/users/${id}`);
+  redirect(`/users/${id}?ok=1`);
+}
+
 export async function createMemberAction(formData: FormData) {
   const s = await guardManage();
   await requirePermission(s, "usuarios", "create");

@@ -8,6 +8,7 @@ import {
   buildNr1Report,
   deleteDocument,
   recordGeneratedDocument,
+  requirePermission,
   updateManualDocument,
   writeAudit,
 } from "@/src/index";
@@ -25,15 +26,16 @@ export async function generateReportAction() {
   redirect("/documents/report");
 }
 
-async function guardManage() {
+async function guardManage(action = "edit") {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) throw new Error("Sem permissão para gerir documentos.");
+  await requirePermission(session, "documentos", action);
   return session;
 }
 
 export async function addDocumentAction(formData: FormData) {
-  const session = await guardManage();
+  const session = await guardManage("create");
   await addManualDocument(
     session.organizationId,
     { title: str(formData, "title"), fileUrl: str(formData, "fileUrl") || undefined, note: str(formData, "note") || undefined },
@@ -53,7 +55,7 @@ export async function updateDocumentAction(formData: FormData) {
 }
 
 export async function deleteDocumentAction(formData: FormData) {
-  const session = await guardManage();
+  const session = await guardManage("delete");
   const id = str(formData, "id");
   await deleteDocument(id, session.organizationId);
   await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "document.deleted", entityType: "GeneratedDocument", entityId: id });

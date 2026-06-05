@@ -31,19 +31,24 @@ export const ACTIONS: { key: string; label: string }[] = [
 
 export const RBAC_ROLES: Role[] = [
   Role.COMPANY_ADMIN,
+  Role.UNIT_MANAGER,
   Role.CONSULTANT,
   Role.HR,
   Role.LEADER,
   Role.EMPLOYEE,
   Role.AUDITOR,
+  Role.SESMT,
+  Role.OCCUPATIONAL_DOCTOR,
+  Role.CIPA_MEMBER,
 ];
 
-const MANAGER_ROLES: Role[] = [Role.SUPER_ADMIN, Role.CONSULTANT, Role.COMPANY_ADMIN, Role.HR];
+const MANAGER_ROLES: Role[] = [Role.SUPER_ADMIN, Role.CONSULTANT, Role.COMPANY_ADMIN, Role.HR, Role.UNIT_MANAGER];
+const READONLY_ROLES: Role[] = [Role.AUDITOR, Role.SESMT, Role.OCCUPATIONAL_DOCTOR, Role.CIPA_MEMBER];
 
-/** Padrão quando não há configuração: gestores tudo; Auditor só leitura; demais nada. */
+/** Padrão quando não há configuração: gestores tudo; conformidade só leitura; demais nada. */
 export function defaultAllow(role: Role, action: string): boolean {
   if (MANAGER_ROLES.includes(role)) return true;
-  if (role === Role.AUDITOR) return action === "view";
+  if (READONLY_ROLES.includes(role)) return action === "view";
   return false;
 }
 

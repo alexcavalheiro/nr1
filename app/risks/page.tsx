@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ensureDb, prisma } from "@/src/db";
-import { listRisks } from "@/src/index";
+import { listRisks, scopedDepartmentIds } from "@/src/index";
 import { canManage, requireSession } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
 import { createRiskAction } from "./actions";
@@ -19,8 +19,10 @@ export default async function RisksPage() {
   const orgId = session.organizationId;
   const manage = canManage(session.role);
 
+  // Acesso por escopo: gestores/auditor veem tudo; demais só a subárvore do seu setor.
+  const deptScope = await scopedDepartmentIds(session);
   const [risks, categories, departments] = await Promise.all([
-    listRisks(orgId),
+    listRisks(orgId, deptScope),
     prisma.riskCategory.findMany({ orderBy: { name: "asc" } }),
     prisma.department.findMany({ where: { organizationId: orgId }, orderBy: { name: "asc" } }),
   ]);

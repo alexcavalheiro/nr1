@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/src/db";
 import { validateWorkbook, type ImportReport } from "@/src/services/import-data";
 import { commitImport, type CommitResult } from "@/src/services/import-commit";
-import { writeAudit } from "@/src/index";
+import { isAllowed, writeAudit } from "@/src/index";
 import { canManage, requireSession } from "../lib/auth";
 
 export interface ImportState {
@@ -30,6 +30,9 @@ export async function importAction(_prev: ImportState, formData: FormData): Prom
 
     if (!report.ok && report.totalErrors > 0) {
       return { report, error: "Corrija as inconsistências antes de importar." };
+    }
+    if (!(await isAllowed(session.organizationId, session.role, "import_export", "create"))) {
+      return { report, error: "Sem permissão para gravar a importação." };
     }
     const result = await commitImport(session.organizationId, buffer, { actorId: session.userId, fileName: file.name });
     await writeAudit({

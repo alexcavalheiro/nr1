@@ -12,17 +12,19 @@ import {
   createRisk,
   deleteRisk,
   prioritizeRisk,
+  requirePermission,
   updateRisk,
   writeAudit,
 } from "@/src/index";
 import type { RiskStatus } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
 
-/** Exige sessão + permissão de gestão. Usada por toda ação de escrita. */
-async function guard(): Promise<Session> {
+/** Exige sessão + gestão + permissão configurável (RBAC) para o módulo/ação. */
+async function guard(module = "riscos", action = "edit"): Promise<Session> {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) throw new Error("Sem permissão para esta ação.");
+  await requirePermission(session, module, action);
   return session;
 }
 
@@ -37,7 +39,7 @@ const num = (fd: FormData, k: string) => Number(fd.get(k));
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 export async function createRiskAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("riscos", "create");
   const title = str(formData, "title");
   const categoryId = str(formData, "categoryId");
   if (!title || !categoryId) throw new Error("Título e categoria são obrigatórios.");
@@ -66,7 +68,7 @@ export async function updateRiskAction(formData: FormData) {
 }
 
 export async function deleteRiskAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("riscos", "delete");
   const riskId = str(formData, "riskId");
   await deleteRisk(riskId, s.organizationId);
   await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "risk.deleted", entityType: "Risk", entityId: riskId });
@@ -102,7 +104,7 @@ export async function prioritizeAction(formData: FormData) {
 }
 
 export async function createPlanAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("planos", "create");
   const riskId = str(formData, "riskId");
   await assertRisk(riskId, s.organizationId);
   const due = str(formData, "dueDate");
@@ -122,7 +124,7 @@ async function assertPlan(planId: string, organizationId: string) {
 }
 
 export async function advancePlanAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("planos", "edit");
   const planId = str(formData, "planId");
   await assertPlan(planId, s.organizationId);
   await advanceActionPlan(planId);
@@ -130,7 +132,7 @@ export async function advancePlanAction(formData: FormData) {
 }
 
 export async function commentAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("planos", "edit");
   const planId = str(formData, "planId");
   await assertPlan(planId, s.organizationId);
   const body = str(formData, "body");
@@ -139,7 +141,7 @@ export async function commentAction(formData: FormData) {
 }
 
 export async function evidenceAction(formData: FormData) {
-  const s = await guard();
+  const s = await guard("planos", "edit");
   const planId = str(formData, "planId");
   await assertPlan(planId, s.organizationId);
   const fileUrl = str(formData, "fileUrl");

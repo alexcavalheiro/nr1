@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
-import { getRiskDetail } from "@/src/index";
+import { getRiskDetail, scopedDepartmentIds } from "@/src/index";
 import { canManage, requireSession } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
 import { advancePlanAction, assessAction, commentAction, createPlanAction, deleteRiskAction, evidenceAction, prioritizeAction, updateRiskAction } from "../actions";
@@ -30,6 +30,9 @@ export default async function RiskDetail({ params }: { params: Promise<{ id: str
   const { id } = await params;
   const risk = await getRiskDetail(session.organizationId, id);
   if (!risk) notFound();
+  // Acesso por escopo: usuário restrito não abre risco fora da subárvore do seu setor.
+  const scope = await scopedDepartmentIds(session);
+  if (scope && !(risk.departmentId && scope.includes(risk.departmentId))) notFound();
   const manage = canManage(session.role);
   const current = risk.assessments.find((a) => a.isCurrent);
   const [categories, departments] = manage

@@ -10,6 +10,7 @@ import {
   deriveRisksFromSurvey,
   getSurveyForResponse,
   publishVersion,
+  requirePermission,
   submitResponse,
   updateSurvey,
   writeAudit,
@@ -19,10 +20,11 @@ import { canManage, requireSession, type Session } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-async function guardManage(): Promise<Session> {
+async function guardManage(action = "edit"): Promise<Session> {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) throw new Error("Sem permissão para esta ação.");
+  await requirePermission(session, "avaliacoes", action);
   return session;
 }
 
@@ -33,7 +35,7 @@ async function assertSurvey(surveyId: string, organizationId: string) {
 }
 
 export async function createSurveyAction(formData: FormData) {
-  const s = await guardManage();
+  const s = await guardManage("create");
   const title = str(formData, "title");
   if (!title) throw new Error("Título obrigatório.");
   const survey = await createSurvey({
@@ -57,7 +59,7 @@ export async function updateSurveyAction(formData: FormData) {
 }
 
 export async function deleteSurveyAction(formData: FormData) {
-  const s = await guardManage();
+  const s = await guardManage("delete");
   const surveyId = str(formData, "surveyId");
   await deleteSurvey(surveyId, s.organizationId);
   await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "survey.deleted", entityType: "Survey", entityId: surveyId });

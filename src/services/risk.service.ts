@@ -122,9 +122,12 @@ async function resolveMatrix(organizationId: string): Promise<RiskMatrix> {
 // -----------------------------------------------------------------------------
 // LEITURA p/ UI: lista de riscos da org e detalhe completo (escopado por tenant).
 // -----------------------------------------------------------------------------
-export async function listRisks(organizationId: string) {
+export async function listRisks(organizationId: string, departmentIds?: string[] | null) {
   return prisma.risk.findMany({
-    where: { organizationId },
+    where: {
+      organizationId,
+      ...(Array.isArray(departmentIds) ? { departmentId: { in: departmentIds } } : {}),
+    },
     orderBy: { createdAt: "desc" },
     include: {
       category: { select: { name: true, code: true } },
