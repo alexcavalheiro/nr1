@@ -67,6 +67,7 @@ model Organization {
   obligations     Obligation[]
   pendencies      Pendency[]
   importBatches   ImportBatch[]
+  rolePermissions RolePermission[]
 
   @@index([active])
 }
@@ -1420,6 +1421,23 @@ model Pendency {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
+  @@index([organizationId])
+}
+
+// Permissões por módulo configuráveis por perfil (RBAC granular).
+// Ausência de linha → comportamento padrão (ver isAllowed no serviço).
+model RolePermission {
+  id             String   @id @default(cuid())
+  organizationId String
+  role           Role
+  module         String
+  action         String
+  allowed        Boolean  @default(true)
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, role, module, action])
   @@index([organizationId])
 }
 

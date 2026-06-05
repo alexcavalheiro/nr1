@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
-import { createMember, resetMemberPassword, setMemberActive, updateMemberProfile, updateMemberRole, writeAudit } from "@/src/index";
+import { createMember, requirePermission, resetMemberPassword, setMemberActive, updateMemberProfile, updateMemberRole, writeAudit } from "@/src/index";
 import type { Role } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
 
@@ -24,6 +24,7 @@ async function assertMembership(id: string, organizationId: string) {
 
 export async function createMemberAction(formData: FormData) {
   const s = await guardManage();
+  await requirePermission(s, "usuarios", "create");
   const name = str(formData, "name");
   const email = str(formData, "email");
   if (!name || !email) throw new Error("Nome e e-mail são obrigatórios.");
@@ -41,6 +42,7 @@ export async function createMemberAction(formData: FormData) {
 
 export async function updateMemberAction(formData: FormData) {
   const s = await guardManage();
+  await requirePermission(s, "usuarios", "edit");
   const id = str(formData, "id");
   try {
     await updateMemberProfile(id, s.organizationId, {
@@ -59,6 +61,7 @@ export async function updateMemberAction(formData: FormData) {
 
 export async function changeRoleAction(formData: FormData) {
   const s = await guardManage();
+  await requirePermission(s, "usuarios", "edit");
   const id = str(formData, "id");
   await assertMembership(id, s.organizationId);
   const role = str(formData, "role") as Role;
@@ -69,6 +72,7 @@ export async function changeRoleAction(formData: FormData) {
 
 export async function toggleActiveAction(formData: FormData) {
   const s = await guardManage();
+  await requirePermission(s, "usuarios", "edit");
   const id = str(formData, "id");
   await assertMembership(id, s.organizationId);
   const active = str(formData, "active") === "true";
@@ -79,6 +83,7 @@ export async function toggleActiveAction(formData: FormData) {
 
 export async function resetPasswordAction(formData: FormData) {
   const s = await guardManage();
+  await requirePermission(s, "usuarios", "edit");
   const id = str(formData, "id");
   // Volta para o detalhe do membro quando acionado de lá; senão para a lista.
   const base = str(formData, "from") === "detail" ? `/users/${id}` : "/users";
