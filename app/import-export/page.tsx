@@ -3,6 +3,7 @@ import { ensureDb } from "@/src/db";
 import { canManage, requireSession } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
 import { TAB_SPECS } from "@/src/services/import-data";
+import { corporateCounts, listImportBatches } from "@/src/services/import-commit";
 import { ImportForm } from "./ImportForm";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,10 @@ export default async function ImportExportPage() {
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) redirect("/dashboard");
+  const [counts, batches] = await Promise.all([
+    corporateCounts(session.organizationId),
+    listImportBatches(session.organizationId),
+  ]);
 
   return (
     <AppShell session={session} active="import-export" title="Importação e Exportação de Dados" subtitle="Planilha padrão de empresas, sócios, contratos, fornecedores, obrigações e pendências" showReport={false}>
@@ -41,10 +46,40 @@ export default async function ImportExportPage() {
         <div style={{ marginTop: 12 }}>
           <ImportForm />
         </div>
-        <p className="hint" style={{ marginTop: 12 }}>
-          A gravação definitiva (criar/atualizar empresas, sócios, contratos etc., com dedupe por CNPJ/CPF e histórico de
-          importações) é a próxima fase e depende dos novos modelos de dados no banco.
-        </p>
+      </div>
+
+      <h3 className="section-title">Dados cadastrados</h3>
+      <div className="card">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 18 }}>
+          <div><div className="stat-label">Empresas</div><strong style={{ fontSize: 20 }}>{counts.companies}</strong></div>
+          <div><div className="stat-label">Sócios</div><strong style={{ fontSize: 20 }}>{counts.partners}</strong></div>
+          <div><div className="stat-label">Contratos</div><strong style={{ fontSize: 20 }}>{counts.contracts}</strong></div>
+          <div><div className="stat-label">Fornecedores</div><strong style={{ fontSize: 20 }}>{counts.suppliers}</strong></div>
+          <div><div className="stat-label">Obrigações</div><strong style={{ fontSize: 20 }}>{counts.obligations}</strong></div>
+          <div><div className="stat-label">Pendências</div><strong style={{ fontSize: 20 }}>{counts.pendencies}</strong></div>
+        </div>
+      </div>
+
+      <h3 className="section-title">Histórico de importações ({batches.length})</h3>
+      <div className="card">
+        {batches.length === 0 ? (
+          <p className="stat-label">Nenhuma importação realizada ainda.</p>
+        ) : (
+          <table>
+            <thead><tr><th>Data</th><th>Arquivo</th><th>Criados</th><th>Atualizados</th><th>Status</th></tr></thead>
+            <tbody>
+              {batches.map((b) => (
+                <tr key={b.id}>
+                  <td className="muted">{new Date(b.createdAt).toLocaleString("pt-BR")}</td>
+                  <td>{b.fileName ?? "—"}</td>
+                  <td>{b.created}</td>
+                  <td>{b.updated}</td>
+                  <td><span className="badge LOW">{b.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </AppShell>
   );

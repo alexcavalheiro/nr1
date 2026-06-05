@@ -59,6 +59,14 @@ model Organization {
   aiConversations AiConversation[]
   aiInsights      AiInsight[]
   execSummaries   ExecutiveSummary[]
+  // Dados corporativos (importação de planilha padrão)
+  companies       Company[]
+  partners        Partner[]
+  contracts       Contract[]
+  suppliers       Supplier[]
+  obligations     Obligation[]
+  pendencies      Pendency[]
+  importBatches   ImportBatch[]
 
   @@index([active])
 }
@@ -1263,4 +1271,172 @@ enum SentimentLabel {
   NEUTRAL
   NEGATIVE
   CRITICAL
+}
+
+// ===========================================================================
+// DADOS CORPORATIVOS — importação/exportação de planilha padrão.
+// Empresas e entidades vinculadas (sócios, contratos, fornecedores,
+// obrigações, pendências). Tudo escopado por organização (tenant).
+// ===========================================================================
+model Company {
+  id                 String   @id @default(cuid())
+  organizationId     String
+  razaoSocial        String
+  nomeFantasia       String?
+  cnpj               String
+  inscricaoEstadual  String?
+  inscricaoMunicipal String?
+  endereco           String?
+  cidade             String?
+  estado             String?
+  cep                String?
+  telefone           String?
+  email              String?
+  status             String?
+  observacoes        String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  partners     Partner[]
+  contracts    Contract[]
+  suppliers    Supplier[]
+  obligations  Obligation[]
+  pendencies   Pendency[]
+
+  @@unique([organizationId, cnpj])
+  @@index([organizationId])
+}
+
+model Partner {
+  id               String    @id @default(cuid())
+  organizationId   String
+  companyId        String?
+  nome             String
+  cpfCnpj          String?
+  tipo             String?
+  empresaVinculada String?
+  empresaCnpj      String?
+  percentual       String?
+  cargo            String?
+  dataEntrada      DateTime?
+  dataSaida        DateTime?
+  status           String?
+  observacoes      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([organizationId, cpfCnpj])
+}
+
+model Contract {
+  id               String    @id @default(cuid())
+  organizationId   String
+  companyId        String?
+  nome             String
+  tipo             String?
+  empresaVinculada String?
+  empresaCnpj      String?
+  parteRelacionada String?
+  dataInicio       DateTime?
+  dataVencimento   DateTime?
+  valor            String?
+  status           String?
+  responsavel      String?
+  observacoes      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+model Supplier {
+  id               String   @id @default(cuid())
+  organizationId   String
+  companyId        String?
+  nome             String
+  cnpjCpf          String?
+  categoria        String?
+  telefone         String?
+  email            String?
+  empresaVinculada String?
+  empresaCnpj      String?
+  status           String?
+  observacoes      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+model Obligation {
+  id               String    @id @default(cuid())
+  organizationId   String
+  companyId        String?
+  nome             String
+  tipo             String?
+  empresaVinculada String?
+  empresaCnpj      String?
+  prazo            DateTime?
+  responsavel      String?
+  status           String?
+  prioridade       String?
+  observacoes      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+model Pendency {
+  id               String    @id @default(cuid())
+  organizationId   String
+  companyId        String?
+  titulo           String
+  descricao        String?
+  empresaVinculada String?
+  empresaCnpj      String?
+  responsavel      String?
+  prioridade       String?
+  status           String?
+  dataLimite       DateTime?
+  observacoes      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+}
+
+// Histórico de importações de planilha.
+model ImportBatch {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?
+  fileName       String?
+  created        Int      @default(0)
+  updated        Int      @default(0)
+  errors         Int      @default(0)
+  status         String   @default("COMPLETED")
+  summary        Json?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
 }

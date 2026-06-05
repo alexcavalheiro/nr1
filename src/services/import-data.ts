@@ -283,3 +283,36 @@ export async function validateWorkbook(buffer: ArrayBuffer | Buffer): Promise<Im
   const totalErrors = issues.length;
   return { tabs, issues, totalRows, totalErrors, ok: totalErrors === 0 && totalRows > 0 };
 }
+
+/** Lê as linhas com dados de cada aba, indexadas pelo cabeçalho da coluna. */
+export async function readWorkbookRows(buffer: ArrayBuffer | Buffer): Promise<Record<string, Record<string, string>[]>> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  const buf = Buffer.isBuffer(buffer) ? buffer : Buffer.from(new Uint8Array(buffer as ArrayBuffer));
+  await wb.xlsx.load(buf as unknown as Parameters<typeof wb.xlsx.load>[0]);
+
+  const out: Record<string, Record<string, string>[]> = {};
+  for (const spec of TAB_SPECS) {
+    const ws = wb.worksheets.find((w) => normalize(w.name) === normalize(spec.name));
+    out[spec.name] = [];
+    if (!ws) continue;
+    const headerRow = ws.getRow(1);
+    const headerMap = new Map<string, number>();
+    headerRow.eachCell((cell, col) => headerMap.set(normalize(String(cell.value ?? "")), col));
+    for (let r = 2; r <= ws.rowCount; r++) {
+      const row = ws.getRow(r);
+      const rec: Record<string, string> = {};
+      let hasData = false;
+      for (const c of spec.columns) {
+        const col = headerMap.get(normalize(c.header));
+        const v = col ? String(row.getCell(col).value ?? "").trim() : "";
+        rec[c.header] = v;
+        if (v) hasData = true;
+      }
+      if (hasData) out[spec.name].push(rec);
+    }
+  }
+  return out;
+}
+
+export const onlyDigitsExport = onlyDigits;
