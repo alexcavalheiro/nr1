@@ -12,6 +12,7 @@ import {
   publishVersion,
   submitResponse,
   updateSurvey,
+  writeAudit,
 } from "@/src/index";
 import type { QuestionType, SurveyType } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
@@ -57,7 +58,9 @@ export async function updateSurveyAction(formData: FormData) {
 
 export async function deleteSurveyAction(formData: FormData) {
   const s = await guardManage();
-  await deleteSurvey(str(formData, "surveyId"), s.organizationId);
+  const surveyId = str(formData, "surveyId");
+  await deleteSurvey(surveyId, s.organizationId);
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "survey.deleted", entityType: "Survey", entityId: surveyId });
   revalidatePath("/surveys");
   redirect("/surveys");
 }

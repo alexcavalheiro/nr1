@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ensureDb } from "@/src/db";
-import { createPost, deletePost, updatePost } from "@/src/index";
+import { createPost, deletePost, updatePost, writeAudit } from "@/src/index";
 import type { FeedType } from "@prisma/client";
 import { canManage, requireSession } from "../lib/auth";
 
@@ -41,6 +41,8 @@ export async function updatePostAction(formData: FormData) {
 
 export async function deletePostAction(formData: FormData) {
   const session = await guardManage();
-  await deletePost(str(formData, "id"), session.organizationId);
+  const id = str(formData, "id");
+  await deletePost(id, session.organizationId);
+  await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "feed.deleted", entityType: "FeedPost", entityId: id });
   revalidatePath("/hub");
 }

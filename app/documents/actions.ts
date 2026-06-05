@@ -9,6 +9,7 @@ import {
   deleteDocument,
   recordGeneratedDocument,
   updateManualDocument,
+  writeAudit,
 } from "@/src/index";
 import { canManage, canViewDocs, requireSession } from "../lib/auth";
 
@@ -20,6 +21,7 @@ export async function generateReportAction() {
   if (!canViewDocs(session.role)) throw new Error("Sem permissão.");
   const report = await buildNr1Report(session.organizationId);
   await recordGeneratedDocument(session.organizationId, "NR1_REPORT", "PDF", report, session.userId);
+  await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "document.report_generated", entityType: "GeneratedDocument" });
   redirect("/documents/report");
 }
 
@@ -52,6 +54,8 @@ export async function updateDocumentAction(formData: FormData) {
 
 export async function deleteDocumentAction(formData: FormData) {
   const session = await guardManage();
-  await deleteDocument(str(formData, "id"), session.organizationId);
+  const id = str(formData, "id");
+  await deleteDocument(id, session.organizationId);
+  await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "document.deleted", entityType: "GeneratedDocument", entityId: id });
   revalidatePath("/documents");
 }

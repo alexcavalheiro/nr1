@@ -2,18 +2,18 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { ensureDb, prisma } from "@/src/db";
 import type { Session } from "../lib/auth";
-import { canManage, ROLE_LABEL } from "../lib/auth";
+import { canManage, canViewDocs, ROLE_LABEL } from "../lib/auth";
 import { logout } from "../lib/auth-actions";
 import {
   IconBook, IconBot, IconBuilding, IconDashboard, IconDocuments, IconFileDown,
-  IconListening, IconMegaphone, IconMonitoring, IconPlug, IconRisks, IconShieldCheck, IconSurveys, IconUsers, IconZap,
+  IconListening, IconMegaphone, IconMonitoring, IconPlug, IconRisks, IconShield, IconShieldCheck, IconSurveys, IconUsers, IconZap,
 } from "./icons";
 
 export type ShellKey =
   | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
-  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users" | "account" | "import-export";
+  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users" | "account" | "import-export" | "audit";
 
-const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean }[] = [
+const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean; docs?: boolean }[] = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
   { key: "learning", href: "/learning", label: "Aprendizagem", Icon: IconBook },
   { key: "hub", href: "/hub", label: "Hub", Icon: IconMegaphone },
@@ -28,6 +28,7 @@ const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashbo
   { key: "privacy", href: "/privacy", label: "Privacidade / LGPD", Icon: IconShieldCheck },
   { key: "users", href: "/users", label: "Usuários", Icon: IconUsers, manage: true },
   { key: "import-export", href: "/import-export", label: "Import/Export", Icon: IconFileDown, manage: true },
+  { key: "audit", href: "/audit", label: "Auditoria", Icon: IconShield, docs: true },
 ];
 
 function initials(name: string) {
@@ -56,7 +57,7 @@ export async function AppShell({
         </div>
         <nav className="side-nav">
           <span className="side-nav-label">Plataforma</span>
-          {NAV.filter((n) => !n.manage || canManage(session.role)).map(({ key, href, label, Icon }) => (
+          {NAV.filter((n) => (n.docs ? canViewDocs(session.role) : !n.manage || canManage(session.role))).map(({ key, href, label, Icon }) => (
             <Link key={key} href={href} className={`side-link${active === key ? " active" : ""}`}>
               <Icon /> {label}
             </Link>

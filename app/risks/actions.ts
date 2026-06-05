@@ -13,6 +13,7 @@ import {
   deleteRisk,
   prioritizeRisk,
   updateRisk,
+  writeAudit,
 } from "@/src/index";
 import type { RiskStatus } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
@@ -66,7 +67,9 @@ export async function updateRiskAction(formData: FormData) {
 
 export async function deleteRiskAction(formData: FormData) {
   const s = await guard();
-  await deleteRisk(str(formData, "riskId"), s.organizationId);
+  const riskId = str(formData, "riskId");
+  await deleteRisk(riskId, s.organizationId);
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "risk.deleted", entityType: "Risk", entityId: riskId });
   revalidatePath("/risks");
   revalidatePath("/dashboard");
   redirect("/risks");
