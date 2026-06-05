@@ -11,7 +11,7 @@ import {
 
 export type ShellKey =
   | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
-  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users" | "account";
+  | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy" | "users" | "account" | "import-export";
 
 const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean }[] = [
   { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
@@ -27,6 +27,7 @@ const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashbo
   { key: "integrations", href: "/integrations", label: "Integrações", Icon: IconPlug, manage: true },
   { key: "privacy", href: "/privacy", label: "Privacidade / LGPD", Icon: IconShieldCheck },
   { key: "users", href: "/users", label: "Usuários", Icon: IconUsers, manage: true },
+  { key: "import-export", href: "/import-export", label: "Import/Export", Icon: IconFileDown, manage: true },
 ];
 
 function initials(name: string) {
