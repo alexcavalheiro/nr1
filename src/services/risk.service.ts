@@ -28,6 +28,37 @@ export async function createRisk(input: CreateRiskInput) {
   return risk;
 }
 
+export interface UpdateRiskInput {
+  title?: string;
+  categoryId?: string;
+  departmentId?: string | null;
+  description?: string | null;
+  status?: RiskStatus;
+}
+
+export async function updateRisk(riskId: string, organizationId: string, input: UpdateRiskInput) {
+  const risk = await prisma.risk.findFirst({ where: { id: riskId, organizationId } });
+  if (!risk) throw new Error("Risco não encontrado.");
+  if (input.title !== undefined && !input.title.trim()) throw new Error("Título obrigatório.");
+  return prisma.risk.update({
+    where: { id: riskId },
+    data: {
+      title: input.title?.trim() ?? undefined,
+      categoryId: input.categoryId || undefined,
+      departmentId: input.departmentId === undefined ? undefined : input.departmentId || null,
+      description: input.description === undefined ? undefined : input.description || null,
+      status: input.status ?? undefined,
+    },
+  });
+}
+
+/** Exclui um risco e tudo que cascateia (avaliações, priorização, planos, fontes). */
+export async function deleteRisk(riskId: string, organizationId: string) {
+  const risk = await prisma.risk.findFirst({ where: { id: riskId, organizationId } });
+  if (!risk) throw new Error("Risco não encontrado.");
+  return prisma.risk.delete({ where: { id: riskId } });
+}
+
 export interface AssessRiskInput {
   riskId: string;
   probability: number; // 1..5

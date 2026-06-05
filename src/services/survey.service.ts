@@ -30,6 +30,35 @@ export async function createSurvey(input: CreateSurveyInput) {
   });
 }
 
+export async function updateSurvey(
+  surveyId: string,
+  organizationId: string,
+  input: { title?: string; type?: import("@prisma/client").SurveyType; description?: string | null },
+) {
+  const survey = await prisma.survey.findFirst({ where: { id: surveyId, organizationId } });
+  if (!survey) throw new Error("Pesquisa não encontrada.");
+  if (input.title !== undefined && !input.title.trim()) throw new Error("Título obrigatório.");
+  return prisma.survey.update({
+    where: { id: surveyId },
+    data: {
+      title: input.title?.trim() ?? undefined,
+      type: input.type ?? undefined,
+      description: input.description === undefined ? undefined : input.description || null,
+    },
+  });
+}
+
+/** Exclui a pesquisa e todo o seu conteúdo (versões, perguntas, respostas). */
+export async function deleteSurvey(surveyId: string, organizationId: string) {
+  const survey = await prisma.survey.findFirst({ where: { id: surveyId, organizationId } });
+  if (!survey) throw new Error("Pesquisa não encontrada.");
+  // Quebra o FK circular (Survey.currentVersionId → SurveyVersion) antes de excluir.
+  await prisma.$transaction([
+    prisma.survey.update({ where: { id: surveyId }, data: { currentVersionId: null } }),
+    prisma.survey.delete({ where: { id: surveyId } }),
+  ]);
+}
+
 export interface QuestionInput {
   text: string;
   type: import("@prisma/client").QuestionType;

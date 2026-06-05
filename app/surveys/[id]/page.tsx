@@ -5,7 +5,7 @@ import { getSurveyDetail } from "@/src/index";
 import { canManage, requireSession } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
 import { SURVEY_TYPES } from "../page";
-import { addQuestionAction, deriveRisksAction, publishSurveyAction } from "../actions";
+import { addQuestionAction, deleteSurveyAction, deriveRisksAction, publishSurveyAction, updateSurveyAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +38,31 @@ export default async function SurveyDetail({
         <Link href="/surveys" className="nav-link">← Voltar às pesquisas</Link>
         <p className="muted" style={{ marginTop: 8 }}>{SURVEY_TYPES[survey.type] ?? survey.type} · {survey._count.responses} respostas</p>
         {responded && <div className="card" style={{ borderColor: "var(--low)", marginBottom: 16 }}>✓ Resposta registrada. Obrigado!</div>}
+
+        {manage && (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="form-row" style={{ justifyContent: "space-between" }}>
+              <details style={{ flex: 1 }}>
+                <summary className="btn-ghost btn-sm" style={{ display: "inline-block", cursor: "pointer" }}>Editar pesquisa</summary>
+                <form action={updateSurveyAction} style={{ marginTop: 10 }}>
+                  <input type="hidden" name="surveyId" value={survey.id} />
+                  <div className="form-row" style={{ marginBottom: 8 }}>
+                    <input name="title" defaultValue={survey.title} placeholder="Título" required style={{ flex: 2 }} />
+                    <select name="type" defaultValue={survey.type}>
+                      {Object.entries(SURVEY_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </div>
+                  <input name="description" defaultValue={survey.description ?? ""} placeholder="Descrição (opcional)" style={{ width: "100%", marginBottom: 8 }} />
+                  <button className="btn btn-sm" style={{ width: "auto" }} type="submit">Salvar alterações</button>
+                </form>
+              </details>
+              <form action={deleteSurveyAction}>
+                <input type="hidden" name="surveyId" value={survey.id} />
+                <button className="btn-ghost btn-sm" type="submit">Excluir pesquisa</button>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* PUBLICADA */}
         {published && (

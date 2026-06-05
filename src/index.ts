@@ -5,7 +5,7 @@ export * from "./domain/scoring";
 export * from "./domain/sentiment";
 
 export { emitEvent } from "./services/events";
-export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail } from "./services/risk.service";
+export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail, updateRisk, deleteRisk } from "./services/risk.service";
 export { prioritizeRisk, recomputeRanking, getRanking } from "./services/prioritization.service";
 export { createActionPlan, advanceActionPlan, addActionComment, addActionEvidence } from "./services/actionplan.service";
 export {
@@ -29,6 +29,9 @@ export {
   toCsv,
   recordGeneratedDocument,
   listGeneratedDocuments,
+  addManualDocument,
+  updateManualDocument,
+  deleteDocument,
 } from "./services/documents.service";
 export {
   listMembers,
@@ -49,7 +52,7 @@ export {
   toggleFlow,
 } from "./services/automation.service";
 export { listTracks, createTrack, addContent, markContentComplete } from "./services/learning.service";
-export { listFeed, createPost } from "./services/hub.service";
+export { listFeed, createPost, updatePost, deletePost } from "./services/hub.service";
 export {
   listIntegrations,
   connectIntegration,
@@ -77,6 +80,8 @@ export {
   listSurveys,
   getSurveyDetail,
   getSurveyForResponse,
+  updateSurvey,
+  deleteSurvey,
 } from "./services/survey.service";
 export {
   runOrgHealthAgent,

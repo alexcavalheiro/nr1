@@ -2,7 +2,7 @@ import { ensureDb } from "@/src/db";
 import { listFeed } from "@/src/index";
 import { canManage, requireSession } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
-import { createPostAction } from "./actions";
+import { createPostAction, deletePostAction, updatePostAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +55,28 @@ export default async function HubPage() {
               </div>
               {p.title && <div style={{ fontWeight: 600, marginBottom: 4 }}>{p.title}</div>}
               <div className="feed-body">{p.body}</div>
+              {manage && (
+                <div className="form-row" style={{ marginTop: 8 }}>
+                  <details>
+                    <summary className="btn-ghost btn-sm" style={{ display: "inline-block", cursor: "pointer" }}>Editar</summary>
+                    <form action={updatePostAction} style={{ marginTop: 8 }}>
+                      <input type="hidden" name="id" value={p.id} />
+                      <div className="form-row" style={{ marginBottom: 8 }}>
+                        <select name="type" defaultValue={p.type}>
+                          {Object.entries(FEED_TYPES).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select>
+                        <input name="title" defaultValue={p.title ?? ""} placeholder="Título (opcional)" style={{ flex: 1 }} />
+                      </div>
+                      <textarea name="body" rows={3} defaultValue={p.body ?? ""} required style={{ width: "100%", marginBottom: 8 }} />
+                      <button className="btn btn-sm" style={{ width: "auto" }} type="submit">Salvar</button>
+                    </form>
+                  </details>
+                  <form action={deletePostAction}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <button className="btn-ghost btn-sm" type="submit">Excluir</button>
+                  </form>
+                </div>
+              )}
             </div>
           ))
         )}

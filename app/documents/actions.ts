@@ -1,9 +1,18 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { buildNr1Report, recordGeneratedDocument } from "@/src/index";
-import { canViewDocs, requireSession } from "../lib/auth";
+import {
+  addManualDocument,
+  buildNr1Report,
+  deleteDocument,
+  recordGeneratedDocument,
+  updateManualDocument,
+} from "@/src/index";
+import { canManage, canViewDocs, requireSession } from "../lib/auth";
+
+const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 export async function generateReportAction() {
   await ensureDb();
@@ -12,4 +21,37 @@ export async function generateReportAction() {
   const report = await buildNr1Report(session.organizationId);
   await recordGeneratedDocument(session.organizationId, "NR1_REPORT", "PDF", report, session.userId);
   redirect("/documents/report");
+}
+
+async function guardManage() {
+  await ensureDb();
+  const session = await requireSession();
+  if (!canManage(session.role)) throw new Error("Sem permissão para gerir documentos.");
+  return session;
+}
+
+export async function addDocumentAction(formData: FormData) {
+  const session = await guardManage();
+  await addManualDocument(
+    session.organizationId,
+    { title: str(formData, "title"), fileUrl: str(formData, "fileUrl") || undefined, note: str(formData, "note") || undefined },
+    session.userId,
+  );
+  revalidatePath("/documents");
+}
+
+export async function updateDocumentAction(formData: FormData) {
+  const session = await guardManage();
+  await updateManualDocument(str(formData, "id"), session.organizationId, {
+    title: str(formData, "title"),
+    fileUrl: str(formData, "fileUrl") || undefined,
+    note: str(formData, "note") || undefined,
+  });
+  revalidatePath("/documents");
+}
+
+export async function deleteDocumentAction(formData: FormData) {
+  const session = await guardManage();
+  await deleteDocument(str(formData, "id"), session.organizationId);
+  revalidatePath("/documents");
 }

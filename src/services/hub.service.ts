@@ -31,3 +31,27 @@ export async function createPost(input: {
     },
   });
 }
+
+async function assertPost(postId: string, organizationId: string) {
+  const post = await prisma.feedPost.findFirst({ where: { id: postId, organizationId } });
+  if (!post) throw new Error("Publicação não encontrada.");
+  return post;
+}
+
+export async function updatePost(
+  postId: string,
+  organizationId: string,
+  input: { type: FeedType; title?: string; body: string },
+) {
+  await assertPost(postId, organizationId);
+  if (!input.body.trim()) throw new Error("Conteúdo obrigatório.");
+  return prisma.feedPost.update({
+    where: { id: postId },
+    data: { type: input.type, title: input.title?.trim() || null, body: input.body.trim() },
+  });
+}
+
+export async function deletePost(postId: string, organizationId: string) {
+  await assertPost(postId, organizationId);
+  return prisma.feedPost.delete({ where: { id: postId } });
+}
