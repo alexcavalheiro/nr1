@@ -5,7 +5,7 @@ export * from "./domain/scoring";
 export * from "./domain/sentiment";
 
 export { emitEvent } from "./services/events";
-export { writeAudit, listAuditLogs, auditStats } from "./services/audit.service";
+export { writeAudit, listAuditLogs, auditStats, accessDashboard } from "./services/audit.service";
 export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail, updateRisk, deleteRisk } from "./services/risk.service";
 export { prioritizeRisk, recomputeRanking, getRanking } from "./services/prioritization.service";
 export { createActionPlan, advanceActionPlan, addActionComment, addActionEvidence } from "./services/actionplan.service";

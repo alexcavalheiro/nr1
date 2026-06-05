@@ -52,6 +52,56 @@ export async function listAuditLogs(organizationId: string, filter: AuditFilter 
   });
 }
 
+/** Indicadores de Usuários e Acessos (PDF: "DASHBOARD DE USUÁRIOS E ACESSOS"). */
+export async function accessDashboard(organizationId: string) {
+  const since = new Date(Date.now() - 30 * 86_400_000);
+  const [members, loginsByUser, failed30, permChanges30, recentLogins] = await Promise.all([
+    prisma.membership.findMany({
+      where: { organizationId },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    }),
+    prisma.auditLog.groupBy({
+      by: ["actorId"],
+      where: { organizationId, action: "auth.login" },
+      _max: { createdAt: true },
+    }),
+    prisma.auditLog.count({ where: { organizationId, action: "auth.login_failed", createdAt: { gte: since } } }),
+    prisma.auditLog.count({ where: { organizationId, action: "user.role_changed", createdAt: { gte: since } } }),
+    prisma.auditLog.findMany({
+      where: { organizationId, action: "auth.login" },
+      orderBy: { createdAt: "desc" },
+      take: 8,
+      include: { actor: { select: { name: true } } },
+    }),
+  ]);
+
+  const lastLogin = new Map<string, Date>();
+  for (const g of loginsByUser) if (g.actorId && g._max.createdAt) lastLogin.set(g.actorId, g._max.createdAt);
+
+  const byRole: Record<string, number> = {};
+  let active = 0;
+  let inactive = 0;
+  let noAccess30 = 0;
+  for (const m of members) {
+    if (m.active) active++;
+    else inactive++;
+    byRole[m.role] = (byRole[m.role] ?? 0) + 1;
+    const ll = lastLogin.get(m.userId);
+    if (!ll || ll < since) noAccess30++;
+  }
+
+  return {
+    total: members.length,
+    active,
+    inactive,
+    byRole,
+    noAccess30,
+    failed30,
+    permChanges30,
+    recentLogins: recentLogins.map((l) => ({ name: l.actor?.name ?? "—", at: l.createdAt })),
+  };
+}
+
 export async function auditStats(organizationId: string) {
   const since = new Date(Date.now() - 30 * 86_400_000);
   const [total, last30, byAction, byEntity] = await Promise.all([
