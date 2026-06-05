@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
 import { canManage, requireSession, ROLE_LABEL } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
-import { resetPasswordAction, updateMemberAction } from "../actions";
+import { resetPasswordAction, setAccessExpiryAction, updateMemberAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -57,6 +57,26 @@ export default async function MemberEditPage({
           <button className="btn" style={{ width: "auto" }} type="submit">Redefinir</button>
         </form>
         <p className="hint" style={{ marginTop: 10 }}>A senha deve ter ao menos 6 caracteres.</p>
+      </div>
+
+      <div className="card" style={{ maxWidth: 520, marginTop: 20 }}>
+        <h2>Validade de acesso</h2>
+        <p className="stat-label" style={{ marginBottom: 10 }}>
+          {member.accessExpiresAt
+            ? `Expira em ${member.accessExpiresAt.toLocaleDateString("pt-BR")}${member.accessExpiresAt.getTime() < Date.now() ? " — acesso já bloqueado" : ""}.`
+            : "Sem validade — acesso permanente."}
+        </p>
+        <form action={setAccessExpiryAction} className="form-row">
+          <input type="hidden" name="id" value={member.id} />
+          <input
+            name="accessExpiresAt"
+            type="date"
+            defaultValue={member.accessExpiresAt ? member.accessExpiresAt.toISOString().slice(0, 10) : ""}
+            style={{ flex: 1 }}
+          />
+          <button className="btn" style={{ width: "auto" }} type="submit">Salvar</button>
+        </form>
+        <p className="hint" style={{ marginTop: 10 }}>Deixe em branco para acesso sem expiração. Após a data, o login é bloqueado.</p>
       </div>
     </AppShell>
   );

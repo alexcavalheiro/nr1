@@ -8,7 +8,7 @@ import { changeRoleAction, createMemberAction, resetPasswordAction, toggleActive
 
 export const dynamic = "force-dynamic";
 
-const ROLES = ["COMPANY_ADMIN", "CONSULTANT", "HR", "LEADER", "EMPLOYEE", "AUDITOR"];
+const ROLES = ["COMPANY_ADMIN", "UNIT_MANAGER", "CONSULTANT", "HR", "LEADER", "EMPLOYEE", "AUDITOR", "SESMT", "OCCUPATIONAL_DOCTOR", "CIPA_MEMBER"];
 
 export default async function UsersPage({
   searchParams,

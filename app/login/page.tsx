@@ -14,7 +14,8 @@ export default async function LoginPage({
         <div className="brand"><span className="brand-mark">NR</span> Plataforma NR-1</div>
         <h1>Bem-vindo de volta</h1>
         <p className="stat-label">Saúde Organizacional e Conformidade NR-1</p>
-        {error && <p className="error">Credenciais inválidas.</p>}
+        {error === "expired" && <p className="error">Seu acesso expirou. Procure o gestor para renovar.</p>}
+        {error && error !== "expired" && <p className="error">Credenciais inválidas.</p>}
         <form action={login}>
           <label>E-mail</label>
           <input name="email" type="email" defaultValue="admin@acme.com" required />

@@ -101,6 +101,9 @@ model User {
   avatarUrl     String?
   emailVerified DateTime?
   active        Boolean  @default(true)
+  // 2FA (TOTP). Secret em base32; só exigido no login quando enabled = true.
+  twoFactorEnabled Boolean @default(false)
+  twoFactorSecret  String?
   // LGPD: anonimização em vez de DELETE — preserva integridade de respostas/
   // evidências históricas enquanto remove a identificação do titular.
   anonymizedAt  DateTime?
@@ -130,6 +133,8 @@ model Membership {
   jobTitle       String?
   isLeader       Boolean  @default(false)
   active         Boolean  @default(true)
+  // Validade de acesso: se definido e no passado, o login é bloqueado.
+  accessExpiresAt DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -150,6 +155,10 @@ enum Role {
   LEADER        // Líder
   EMPLOYEE      // Colaborador
   AUDITOR       // Auditor (somente leitura + evidências)
+  UNIT_MANAGER  // Gestor de Unidade (gestão restrita ao seu escopo)
+  SESMT         // Téc./Eng. de Segurança do Trabalho (SESMT)
+  OCCUPATIONAL_DOCTOR // Médico do Trabalho
+  CIPA_MEMBER   // Membro da CIPA (leitura + evidências)
 }
 
 // =============================================================================

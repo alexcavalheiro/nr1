@@ -7,8 +7,12 @@ import { prisma } from "../db";
 // total; demais perfis enxergam apenas a subárvore do seu próprio setor.
 // =============================================================================
 
-/** Perfis com visão total (sem filtro de escopo). */
-const FULL_SCOPE_ROLES = new Set(["SUPER_ADMIN", "CONSULTANT", "COMPANY_ADMIN", "HR", "AUDITOR"]);
+/** Perfis com visão total (sem filtro de escopo). UNIT_MANAGER fica de fora:
+ *  gere, mas restrito à subárvore do seu setor. */
+const FULL_SCOPE_ROLES = new Set([
+  "SUPER_ADMIN", "CONSULTANT", "COMPANY_ADMIN", "HR",
+  "AUDITOR", "SESMT", "OCCUPATIONAL_DOCTOR", "CIPA_MEMBER",
+]);
 
 export interface ScopeSession {
   userId: string;
