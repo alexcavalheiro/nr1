@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { changeOwnPassword, updateOwnProfile } from "@/src/index";
+import { changeOwnPassword, updateOwnProfile, writeAudit } from "@/src/index";
 import { createSession, requireSession } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "");
@@ -14,6 +14,7 @@ export async function updateProfileAction(formData: FormData) {
     const user = await updateOwnProfile(session.userId, str(formData, "name"), str(formData, "email"));
     // Atualiza o nome guardado no cookie de sessão para refletir na UI.
     await createSession({ ...session, name: user.name });
+    await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "account.profile_updated", entityType: "User", entityId: session.userId });
   } catch (e) {
     redirect(`/account?error=${encodeURIComponent((e as Error).message)}`);
   }
@@ -30,6 +31,7 @@ export async function changePasswordAction(formData: FormData) {
   try {
     if (next !== confirm) throw new Error("A confirmação não confere com a nova senha.");
     await changeOwnPassword(session.userId, current, next);
+    await writeAudit({ organizationId: session.organizationId, actorId: session.userId, action: "account.password_changed", entityType: "User", entityId: session.userId });
   } catch (e) {
     redirect(`/account?error=${encodeURIComponent((e as Error).message)}`);
   }

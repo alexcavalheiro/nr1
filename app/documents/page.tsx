@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
 import { listGeneratedDocuments } from "@/src/index";
-import { canViewDocs, requireSession } from "../lib/auth";
+import { canManage, canViewDocs, requireSession } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
-import { generateReportAction } from "./actions";
+import { addDocumentAction, deleteDocumentAction, generateReportAction, updateDocumentAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -12,10 +12,13 @@ const DOC_LABEL: Record<string, string> = {
   ASSESSMENT_HISTORY: "Histórico de avaliações", EVIDENCE_PACKAGE: "Evidências", CONSOLIDATED_PLAN: "Plano consolidado",
 };
 
+type DocPayload = { manual?: boolean; title?: string; note?: string | null } | null;
+
 export default async function DocumentsPage() {
   await ensureDb();
   const session = await requireSession();
   if (!canViewDocs(session.role)) redirect("/dashboard");
+  const manage = canManage(session.role);
   const docs = await listGeneratedDocuments(session.organizationId);
 
   return (
@@ -40,21 +43,65 @@ export default async function DocumentsPage() {
           </div>
         </div>
 
-        <h3 className="section-title">Documentos gerados ({docs.length})</h3>
+        {manage && (
+          <>
+            <h3 className="section-title">Adicionar documento</h3>
+            <div className="card">
+              <form action={addDocumentAction} className="form-row">
+                <input name="title" placeholder="Título do documento" required style={{ flex: 1 }} />
+                <input name="fileUrl" placeholder="Link / referência (opcional)" style={{ flex: 1 }} />
+                <input name="note" placeholder="Observação (opcional)" style={{ flex: 1 }} />
+                <button className="btn" style={{ width: "auto" }} type="submit">Adicionar</button>
+              </form>
+            </div>
+          </>
+        )}
+
+        <h3 className="section-title">Documentos ({docs.length})</h3>
         <div className="card">
           {docs.length === 0 ? (
-            <p className="stat-label">Nenhum documento gerado ainda.</p>
+            <p className="stat-label">Nenhum documento ainda.</p>
           ) : (
             <table>
-              <thead><tr><th>Documento</th><th>Formato</th><th>Gerado em</th></tr></thead>
+              <thead><tr><th>Documento</th><th>Formato</th><th>Gerado em</th>{manage && <th></th>}</tr></thead>
               <tbody>
-                {docs.map((d) => (
-                  <tr key={d.id}>
-                    <td>{DOC_LABEL[d.type] ?? d.type}</td>
-                    <td className="muted">{d.format}</td>
-                    <td className="muted">{new Date(d.generatedAt).toLocaleString("pt-BR")}</td>
-                  </tr>
-                ))}
+                {docs.map((d) => {
+                  const payload = d.payload as DocPayload;
+                  const isManual = payload?.manual === true;
+                  const name = isManual ? payload?.title ?? "Documento" : DOC_LABEL[d.type] ?? d.type;
+                  return (
+                    <tr key={d.id}>
+                      <td>
+                        {d.fileUrl ? <a href={d.fileUrl} target="_blank" rel="noreferrer">{name}</a> : name}
+                        {payload?.note && <div className="stat-label">{payload.note}</div>}
+                      </td>
+                      <td className="muted">{isManual ? "Manual" : d.format}</td>
+                      <td className="muted">{new Date(d.generatedAt).toLocaleString("pt-BR")}</td>
+                      {manage && (
+                        <td>
+                          {isManual && (
+                            <div className="form-row">
+                              <details>
+                                <summary className="btn-ghost btn-sm" style={{ display: "inline-block", cursor: "pointer" }}>Editar</summary>
+                                <form action={updateDocumentAction} style={{ marginTop: 8 }}>
+                                  <input type="hidden" name="id" value={d.id} />
+                                  <input name="title" defaultValue={payload?.title ?? ""} placeholder="Título" required style={{ width: "100%", marginBottom: 6 }} />
+                                  <input name="fileUrl" defaultValue={d.fileUrl ?? ""} placeholder="Link / referência" style={{ width: "100%", marginBottom: 6 }} />
+                                  <input name="note" defaultValue={payload?.note ?? ""} placeholder="Observação" style={{ width: "100%", marginBottom: 6 }} />
+                                  <button className="btn btn-sm" style={{ width: "auto" }} type="submit">Salvar</button>
+                                </form>
+                              </details>
+                              <form action={deleteDocumentAction}>
+                                <input type="hidden" name="id" value={d.id} />
+                                <button className="btn-ghost btn-sm" type="submit">Excluir</button>
+                              </form>
+                            </div>
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}

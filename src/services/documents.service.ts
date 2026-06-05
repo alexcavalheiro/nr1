@@ -129,3 +129,47 @@ export async function listGeneratedDocuments(organizationId: string) {
     take: 30,
   });
 }
+
+/** Registra manualmente um documento (título + link/referência) no acervo do GRO. */
+export async function addManualDocument(
+  organizationId: string,
+  input: { title: string; fileUrl?: string; type?: DocumentType; note?: string },
+  generatedById?: string,
+) {
+  const title = input.title.trim();
+  if (!title) throw new Error("Título do documento é obrigatório.");
+  return prisma.generatedDocument.create({
+    data: {
+      organizationId,
+      type: input.type ?? DocumentType.EVIDENCE_PACKAGE,
+      format: ExportFormat.PDF,
+      fileUrl: input.fileUrl?.trim() || null,
+      generatedById,
+      payload: { manual: true, title, note: input.note?.trim() || null },
+    },
+  });
+}
+
+export async function updateManualDocument(
+  documentId: string,
+  organizationId: string,
+  input: { title: string; fileUrl?: string; note?: string },
+) {
+  const doc = await prisma.generatedDocument.findFirst({ where: { id: documentId, organizationId } });
+  if (!doc) throw new Error("Documento não encontrado.");
+  const title = input.title.trim();
+  if (!title) throw new Error("Título do documento é obrigatório.");
+  return prisma.generatedDocument.update({
+    where: { id: documentId },
+    data: {
+      fileUrl: input.fileUrl?.trim() || null,
+      payload: { manual: true, title, note: input.note?.trim() || null },
+    },
+  });
+}
+
+export async function deleteDocument(documentId: string, organizationId: string) {
+  const doc = await prisma.generatedDocument.findFirst({ where: { id: documentId, organizationId } });
+  if (!doc) throw new Error("Documento não encontrado.");
+  return prisma.generatedDocument.delete({ where: { id: documentId } });
+}

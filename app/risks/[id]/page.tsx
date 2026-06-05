@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ensureDb } from "@/src/db";
+import { ensureDb, prisma } from "@/src/db";
 import { getRiskDetail } from "@/src/index";
 import { canManage, requireSession } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
-import { advancePlanAction, assessAction, commentAction, createPlanAction, evidenceAction, prioritizeAction } from "../actions";
+import { advancePlanAction, assessAction, commentAction, createPlanAction, deleteRiskAction, evidenceAction, prioritizeAction, updateRiskAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +32,12 @@ export default async function RiskDetail({ params }: { params: Promise<{ id: str
   if (!risk) notFound();
   const manage = canManage(session.role);
   const current = risk.assessments.find((a) => a.isCurrent);
+  const [categories, departments] = manage
+    ? await Promise.all([
+        prisma.riskCategory.findMany({ orderBy: { name: "asc" } }),
+        prisma.department.findMany({ where: { organizationId: session.organizationId }, orderBy: { name: "asc" } }),
+      ])
+    : [[], []];
 
   return (
     <AppShell session={session} active="risks" title={risk.title} subtitle="Avaliação, priorização e planos de ação">
@@ -40,6 +46,40 @@ export default async function RiskDetail({ params }: { params: Promise<{ id: str
           {risk.category.name} · {risk.department?.name ?? "Corporativo"} · {STATUS_LABEL[risk.status] ?? risk.status}
           {current && <> · <span className={`badge ${current.classification}`}>{LEVEL_LABEL[current.classification]}</span></>}
         </p>
+
+        {manage && (
+          <div className="card" style={{ marginBottom: 16 }}>
+            <div className="form-row" style={{ justifyContent: "space-between" }}>
+              <details style={{ flex: 1 }}>
+                <summary className="btn-ghost btn-sm" style={{ display: "inline-block", cursor: "pointer" }}>Editar risco</summary>
+                <form action={updateRiskAction} style={{ marginTop: 10 }}>
+                  <input type="hidden" name="riskId" value={risk.id} />
+                  <div className="form-row" style={{ marginBottom: 8 }}>
+                    <input name="title" defaultValue={risk.title} placeholder="Título" required style={{ flex: 2 }} />
+                    <select name="categoryId" defaultValue={risk.categoryId} style={{ flex: 1 }}>
+                      {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    <select name="departmentId" defaultValue={risk.departmentId ?? ""} style={{ flex: 1 }}>
+                      <option value="">Corporativo</option>
+                      {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="form-row" style={{ marginBottom: 8 }}>
+                    <select name="status" defaultValue={risk.status}>
+                      {Object.entries(STATUS_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                    <input name="description" defaultValue={risk.description ?? ""} placeholder="Descrição (opcional)" style={{ flex: 1 }} />
+                  </div>
+                  <button className="btn btn-sm" style={{ width: "auto" }} type="submit">Salvar alterações</button>
+                </form>
+              </details>
+              <form action={deleteRiskAction}>
+                <input type="hidden" name="riskId" value={risk.id} />
+                <button className="btn-ghost btn-sm" type="submit">Excluir risco</button>
+              </form>
+            </div>
+          </div>
+        )}
 
         <div className="grid-2">
           {/* Avaliação (Módulo 3) */}

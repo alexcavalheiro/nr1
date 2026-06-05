@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { listMembers } from "@/src/index";
+import { accessDashboard, listMembers } from "@/src/index";
 import { canManage, requireSession, ROLE_LABEL } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
 import { changeRoleAction, createMemberAction, resetPasswordAction, toggleActiveAction } from "./actions";
@@ -18,13 +18,37 @@ export default async function UsersPage({
   await ensureDb();
   const session = await requireSession();
   if (!canManage(session.role)) redirect("/dashboard");
-  const members = await listMembers(session.organizationId);
+  const [members, dash] = await Promise.all([
+    listMembers(session.organizationId),
+    accessDashboard(session.organizationId),
+  ]);
   const { reset, error } = await searchParams;
 
   return (
     <AppShell session={session} active="users" title="Usuários e perfis" subtitle="Gestão de membros e papéis de acesso" showReport={false}>
       {reset && <p className="success" style={{ marginBottom: 16 }}>Senha redefinida com sucesso.</p>}
       {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h2>Dashboard de usuários e acessos</h2>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 20, marginTop: 8 }}>
+          <div><div className="stat-label">Ativos</div><strong style={{ fontSize: 20 }}>{dash.active}</strong></div>
+          <div><div className="stat-label">Inativos</div><strong style={{ fontSize: 20 }}>{dash.inactive}</strong></div>
+          <div><div className="stat-label">Sem acesso há 30d+</div><strong style={{ fontSize: 20 }}>{dash.noAccess30}</strong></div>
+          <div><div className="stat-label">Logins inválidos (30d)</div><strong style={{ fontSize: 20 }}>{dash.failed30}</strong></div>
+          <div><div className="stat-label">Alterações de perfil (30d)</div><strong style={{ fontSize: 20 }}>{dash.permChanges30}</strong></div>
+        </div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 12 }}>
+          {Object.entries(dash.byRole).map(([role, n]) => (
+            <span key={role} className="badge AI">{ROLE_LABEL[role] ?? role}: {n}</span>
+          ))}
+        </div>
+        {dash.recentLogins.length > 0 && (
+          <p className="hint" style={{ marginTop: 10 }}>
+            Últimos acessos: {dash.recentLogins.map((l) => `${l.name} (${new Date(l.at).toLocaleString("pt-BR")})`).join(" · ")}
+          </p>
+        )}
+      </div>
       <div className="card" style={{ marginBottom: 20 }}>
         <h2>Adicionar membro</h2>
         <form action={createMemberAction} className="form-row">

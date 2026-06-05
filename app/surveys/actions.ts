@@ -6,10 +6,13 @@ import { ensureDb, prisma } from "@/src/db";
 import {
   addQuestions,
   createSurvey,
+  deleteSurvey,
   deriveRisksFromSurvey,
   getSurveyForResponse,
   publishVersion,
   submitResponse,
+  updateSurvey,
+  writeAudit,
 } from "@/src/index";
 import type { QuestionType, SurveyType } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
@@ -39,6 +42,27 @@ export async function createSurveyAction(formData: FormData) {
     type: str(formData, "type") as SurveyType,
   });
   redirect(`/surveys/${survey.id}`);
+}
+
+export async function updateSurveyAction(formData: FormData) {
+  const s = await guardManage();
+  const surveyId = str(formData, "surveyId");
+  await updateSurvey(surveyId, s.organizationId, {
+    title: str(formData, "title"),
+    type: (str(formData, "type") as SurveyType) || undefined,
+    description: str(formData, "description") || null,
+  });
+  revalidatePath(`/surveys/${surveyId}`);
+  revalidatePath("/surveys");
+}
+
+export async function deleteSurveyAction(formData: FormData) {
+  const s = await guardManage();
+  const surveyId = str(formData, "surveyId");
+  await deleteSurvey(surveyId, s.organizationId);
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "survey.deleted", entityType: "Survey", entityId: surveyId });
+  revalidatePath("/surveys");
+  redirect("/surveys");
 }
 
 export async function addQuestionAction(formData: FormData) {

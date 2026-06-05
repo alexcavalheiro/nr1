@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
 import {
   addActionComment,
@@ -9,8 +10,12 @@ import {
   assessRisk,
   createActionPlan,
   createRisk,
+  deleteRisk,
   prioritizeRisk,
+  updateRisk,
+  writeAudit,
 } from "@/src/index";
+import type { RiskStatus } from "@prisma/client";
 import { canManage, requireSession, type Session } from "../lib/auth";
 
 /** Exige sessão + permissão de gestão. Usada por toda ação de escrita. */
@@ -43,6 +48,31 @@ export async function createRiskAction(formData: FormData) {
     departmentId: str(formData, "departmentId") || undefined,
   });
   revalidatePath("/risks");
+}
+
+export async function updateRiskAction(formData: FormData) {
+  const s = await guard();
+  const riskId = str(formData, "riskId");
+  await updateRisk(riskId, s.organizationId, {
+    title: str(formData, "title"),
+    categoryId: str(formData, "categoryId") || undefined,
+    departmentId: str(formData, "departmentId") || null,
+    description: str(formData, "description") || null,
+    status: (str(formData, "status") as RiskStatus) || undefined,
+  });
+  revalidatePath(`/risks/${riskId}`);
+  revalidatePath("/risks");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteRiskAction(formData: FormData) {
+  const s = await guard();
+  const riskId = str(formData, "riskId");
+  await deleteRisk(riskId, s.organizationId);
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "risk.deleted", entityType: "Risk", entityId: riskId });
+  revalidatePath("/risks");
+  revalidatePath("/dashboard");
+  redirect("/risks");
 }
 
 export async function assessAction(formData: FormData) {
