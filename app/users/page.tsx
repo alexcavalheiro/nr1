@@ -78,7 +78,7 @@ export default async function UsersPage({
                 <td>
                   <form action={changeRoleAction} className="form-row">
                     <input type="hidden" name="id" value={m.id} />
-                    <select name="role" defaultValue={m.role} className="btn-sm" style={{ padding: "5px 8px" }}>
+                    <select key={m.role} name="role" defaultValue={m.role} className="btn-sm" style={{ padding: "5px 8px" }}>
                       {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABEL[r] ?? r}</option>)}
                     </select>
                     <button className="btn-ghost btn-sm" type="submit">Salvar</button>
