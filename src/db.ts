@@ -76,6 +76,10 @@ export function ensureDb(): Promise<void> {
       const { seedDemoTenant } = await import("./seed-bootstrap");
       await seedDemoTenant(prisma);
     }
+
+    // Garante o Super Admin (provedor) — idempotente. Login: super@nr1.com / super123.
+    const { ensurePlatformAdmin } = await import("./services/platform.service");
+    await ensurePlatformAdmin();
   })();
   return g.__dbReady;
 }

@@ -17,6 +17,10 @@ export interface Session {
   organizationId: string;
   role: string;
   name: string;
+  // Impersonação pelo Super Admin: nome do cliente em que ele "entrou" e a
+  // organização de origem (provedor) para poder voltar.
+  impersonating?: string;
+  homeOrgId?: string;
 }
 
 function sign(payload: string): string {

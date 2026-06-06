@@ -15,6 +15,9 @@ export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany 
 export {
   listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
 } from "./services/employee.service";
+export {
+  listClients, platformStats, createClient, setClientActive, getClient, ensurePlatformAdmin,
+} from "./services/platform.service";
 export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail, updateRisk, deleteRisk } from "./services/risk.service";
 export { prioritizeRisk, recomputeRanking, getRanking } from "./services/prioritization.service";
 export { createActionPlan, advanceActionPlan, addActionComment, addActionEvidence } from "./services/actionplan.service";

@@ -4,17 +4,19 @@ import { ensureDb, prisma } from "@/src/db";
 import type { Session } from "../lib/auth";
 import { canManage, canViewDocs, ROLE_LABEL } from "../lib/auth";
 import { logout } from "../lib/auth-actions";
+import { exitClientAction } from "../admin/actions";
 import {
   IconBook, IconBot, IconBuilding, IconDashboard, IconDocuments, IconFileDown,
   IconListening, IconMegaphone, IconMonitoring, IconPlug, IconRisks, IconShield, IconShieldCheck, IconSurveys, IconUsers, IconZap,
 } from "./icons";
 
 export type ShellKey =
-  | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
+  | "admin" | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
   | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy"
   | "empresas" | "colaboradores" | "users" | "permissions" | "account" | "import-export" | "audit";
 
-const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean; docs?: boolean }[] = [
+const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean; docs?: boolean; super?: boolean }[] = [
+  { key: "admin", href: "/admin", label: "Clientes", Icon: IconBuilding, super: true },
   { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
   { key: "learning", href: "/learning", label: "Aprendizagem", Icon: IconBook },
   { key: "hub", href: "/hub", label: "Hub", Icon: IconMegaphone },
@@ -51,6 +53,7 @@ export async function AppShell({
 }) {
   await ensureDb();
   const org = await prisma.organization.findUnique({ where: { id: session.organizationId }, select: { name: true } });
+  const isSuper = session.role === "SUPER_ADMIN" && !session.impersonating;
 
   return (
     <div className="layout">
@@ -61,7 +64,7 @@ export async function AppShell({
         </div>
         <nav className="side-nav">
           <span className="side-nav-label">Plataforma</span>
-          {NAV.filter((n) => (n.docs ? canViewDocs(session.role) : !n.manage || canManage(session.role))).map(({ key, href, label, Icon }) => (
+          {NAV.filter((n) => (n.super ? isSuper : n.docs ? canViewDocs(session.role) : !n.manage || canManage(session.role))).map(({ key, href, label, Icon }) => (
             <Link key={key} href={href} className={`side-link${active === key ? " active" : ""}`}>
               <Icon /> {label}
             </Link>
@@ -80,6 +83,14 @@ export async function AppShell({
       </aside>
 
       <div className="main">
+        {session.impersonating && (
+          <div style={{ background: "#7c3aed", color: "#fff", padding: "8px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <span>👁️ Modo provedor — você está no cliente <strong>{session.impersonating}</strong></span>
+            <form action={exitClientAction}>
+              <button type="submit" className="btn-sm" style={{ background: "#fff", color: "#7c3aed", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>Sair do cliente</button>
+            </form>
+          </div>
+        )}
         <header className="page-header">
           <div>
             <h1 className="page-title">{title}</h1>

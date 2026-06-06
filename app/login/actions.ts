@@ -14,7 +14,7 @@ export async function login(formData: FormData) {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    include: { memberships: { where: { active: true }, take: 1 } },
+    include: { memberships: { where: { active: true }, include: { organization: { select: { active: true } } }, take: 1 } },
   });
 
   const membership = user?.memberships[0];
@@ -27,6 +27,12 @@ export async function login(formData: FormData) {
   if (membership.accessExpiresAt && membership.accessExpiresAt.getTime() < Date.now()) {
     await writeAudit({ organizationId: membership.organizationId, actorId: user.id, action: "auth.access_expired", entityType: "Membership", entityId: membership.id });
     redirect("/login?error=expired");
+  }
+
+  // Cliente suspenso pelo provedor: ninguém daquela organização entra.
+  if (!membership.organization.active) {
+    await writeAudit({ organizationId: membership.organizationId, actorId: user.id, action: "auth.org_suspended", entityType: "Organization", entityId: membership.organizationId });
+    redirect("/login?error=suspended");
   }
 
   const pending = {
