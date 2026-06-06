@@ -35,7 +35,10 @@ export default async function SurveyDetail({
 
   return (
     <AppShell session={session} active="surveys" title={survey.title} subtitle="Questionário e derivação de riscos">
-        <Link href="/surveys" className="nav-link">← Voltar às pesquisas</Link>
+        <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+          <Link href="/surveys" className="nav-link">← Voltar às pesquisas</Link>
+          {manage && <Link href={`/surveys/${survey.id}/resultados`} className="btn btn-sm" style={{ width: "auto" }}>📊 Ver resultados e indicadores</Link>}
+        </div>
         <p className="muted" style={{ marginTop: 8 }}>{SURVEY_TYPES[survey.type] ?? survey.type} · {survey._count.responses} respostas</p>
         {responded && <div className="card" style={{ borderColor: "var(--low)", marginBottom: 16 }}>✓ Resposta registrada. Obrigado!</div>}
 

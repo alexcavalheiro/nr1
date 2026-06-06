@@ -13,6 +13,8 @@ export {
 export { scopedDepartmentIds, hasFullScope, departmentScopeClause } from "./services/scope.service";
 export { collaboratorHome, onboardingSteps } from "./services/home.service";
 export { employeeDossier } from "./services/dossier.service";
+export { SURVEY_TEMPLATES, getTemplate } from "./services/survey-templates";
+export { surveyScores, classify, CLASS_LABEL, DIMENSION_LABELS, type Classification } from "./services/survey-score.service";
 export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany } from "./services/company.service";
 export {
   listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
@@ -89,6 +91,7 @@ export {
 } from "./services/privacy.service";
 export {
   createSurvey,
+  createSurveyFromTemplate,
   addQuestions,
   publishVersion,
   submitResponse,

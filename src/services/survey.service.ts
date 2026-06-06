@@ -30,6 +30,26 @@ export async function createSurvey(input: CreateSurveyInput) {
   });
 }
 
+/** Cria uma pesquisa a partir de um modelo do banco (com todas as perguntas). */
+export async function createSurveyFromTemplate(
+  organizationId: string,
+  templateKey: string,
+  opts: { anonymous?: boolean; titleOverride?: string } = {},
+) {
+  const { getTemplate, templateQuestions } = await import("./survey-templates");
+  const tpl = getTemplate(templateKey);
+  if (!tpl) throw new Error("Modelo não encontrado.");
+  const survey = await createSurvey({
+    organizationId,
+    title: opts.titleOverride?.trim() || tpl.title,
+    type: tpl.type,
+    description: tpl.description,
+    anonymous: opts.anonymous ?? true,
+  });
+  await addQuestions(survey.versions[0].id, templateQuestions(tpl));
+  return survey;
+}
+
 export async function updateSurvey(
   surveyId: string,
   organizationId: string,
@@ -65,6 +85,11 @@ export interface QuestionInput {
   riskCategoryId?: string; // liga a pergunta a um risco psicossocial
   required?: boolean;
   options?: unknown;
+  section?: string;
+  dimension?: string;
+  reverseScored?: boolean;
+  weight?: number;
+  sensitive?: boolean;
 }
 
 /** Adiciona perguntas a uma versão em rascunho (ordem automática). */
@@ -82,6 +107,11 @@ export async function addQuestions(surveyVersionId: string, questions: QuestionI
       required: q.required ?? true,
       options: q.options as never,
       order: idx,
+      section: q.section,
+      dimension: q.dimension,
+      reverseScored: q.reverseScored ?? false,
+      weight: q.weight ?? 1,
+      sensitive: q.sensitive ?? false,
     })),
   });
   return prisma.surveyVersion.findUniqueOrThrow({
