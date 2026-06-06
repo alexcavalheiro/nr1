@@ -15,7 +15,8 @@ export default async function LoginPage({
         <h1>Bem-vindo de volta</h1>
         <p className="stat-label">Saúde Organizacional e Conformidade NR-1</p>
         {error === "expired" && <p className="error">Seu acesso expirou. Procure o gestor para renovar.</p>}
-        {error && error !== "expired" && <p className="error">Credenciais inválidas.</p>}
+        {error === "suspended" && <p className="error">Acesso suspenso. Empresa inativa — fale com o provedor da plataforma.</p>}
+        {error && error !== "expired" && error !== "suspended" && <p className="error">Credenciais inválidas.</p>}
         <form action={login}>
           <label>E-mail</label>
           <input name="email" type="email" defaultValue="admin@acme.com" required />
