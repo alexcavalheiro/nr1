@@ -4,7 +4,7 @@ import { ensureDb } from "@/src/db";
 import { clientUsage, getClient } from "@/src/index";
 import { requireSession } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
-import { enterClientAction, updateBrandingAction, updatePlanAction } from "../actions";
+import { enterClientAction, updateBrandingAction, updateClientInfoAction, updatePlanAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -23,13 +23,13 @@ export default async function ClientDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ ok?: string }>;
+  searchParams: Promise<{ ok?: string; error?: string }>;
 }) {
   await ensureDb();
   const session = await requireSession();
   if (session.role !== "SUPER_ADMIN") redirect("/dashboard");
   const { id } = await params;
-  const { ok } = await searchParams;
+  const { ok, error } = await searchParams;
   const [client, usage] = await Promise.all([getClient(id), clientUsage(id)]);
   if (!client) notFound();
 
@@ -38,6 +38,24 @@ export default async function ClientDetailPage({
       <p style={{ marginBottom: 16 }}><Link href="/admin" className="btn-ghost btn-sm">← Voltar para Clientes</Link></p>
       {ok === "plan" && <p className="success" style={{ marginBottom: 16 }}>Plano atualizado.</p>}
       {ok === "brand" && <p className="success" style={{ marginBottom: 16 }}>Marca atualizada.</p>}
+      {ok === "info" && <p className="success" style={{ marginBottom: 16 }}>Cadastro atualizado.</p>}
+      {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h2>Dados cadastrais</h2>
+        <form action={updateClientInfoAction}>
+          <input type="hidden" name="id" value={client.id} />
+          <div className="form-row" style={{ marginBottom: 8 }}>
+            <div style={{ flex: 2 }}><label>Nome do cliente *</label><input name="name" defaultValue={client.name} required /></div>
+            <div style={{ flex: 2 }}><label>Razão social</label><input name="legalName" defaultValue={client.legalName ?? ""} /></div>
+          </div>
+          <div className="form-row" style={{ marginBottom: 8 }}>
+            <div style={{ flex: 1 }}><label>CNPJ</label><input name="cnpj" defaultValue={client.cnpj ?? ""} /></div>
+            <div style={{ flex: 1 }}><label>Segmento</label><input name="industry" defaultValue={client.industry ?? ""} /></div>
+          </div>
+          <button className="btn" type="submit" style={{ marginTop: 6 }}>Salvar cadastro</button>
+        </form>
+      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>

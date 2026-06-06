@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { createClient, getClient, setClientActive, updateClientBranding, updateClientPlan, writeAudit } from "@/src/index";
+import { createClient, getClient, setClientActive, updateClientBranding, updateClientInfo, updateClientPlan, writeAudit } from "@/src/index";
 import { createSession, requireSession, type Session } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -44,6 +44,25 @@ export async function toggleClientAction(formData: FormData) {
   await setClientActive(id, active);
   await writeAudit({ organizationId: id, actorId: s.userId, action: active ? "client.activated" : "client.suspended", entityType: "Organization", entityId: id });
   revalidatePath("/admin");
+}
+
+export async function updateClientInfoAction(formData: FormData) {
+  const s = await guardSuper();
+  const id = str(formData, "id");
+  try {
+    await updateClientInfo(id, {
+      name: str(formData, "name"),
+      legalName: str(formData, "legalName"),
+      cnpj: str(formData, "cnpj"),
+      industry: str(formData, "industry"),
+    });
+    await writeAudit({ organizationId: id, actorId: s.userId, action: "client.info_updated", entityType: "Organization", entityId: id });
+  } catch (e) {
+    if ((e as Error).message === "NEXT_REDIRECT") throw e;
+    redirect(`/admin/${id}?error=${encodeURIComponent((e as Error).message)}`);
+  }
+  revalidatePath(`/admin/${id}`);
+  redirect(`/admin/${id}?ok=info`);
 }
 
 export async function updatePlanAction(formData: FormData) {
