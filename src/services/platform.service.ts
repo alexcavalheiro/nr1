@@ -126,11 +126,16 @@ export async function updateClientPlan(
 export async function updateClientBranding(
   organizationId: string,
   // logoUrl: undefined = mantém atual · null = remove · string = define (URL ou data URI)
-  data: { logoUrl?: string | null; brandColor?: string | null },
+  data: { logoUrl?: string | null; brandColor?: string | null; theme?: string | null; corners?: string | null },
 ) {
-  const patch: { logoUrl?: string | null; brandColor?: string | null } = {};
+  const patch: { logoUrl?: string | null; brandColor?: string | null; theme?: string; corners?: string } = {};
   if (data.logoUrl !== undefined) patch.logoUrl = data.logoUrl || null;
-  if (data.brandColor !== undefined) patch.brandColor = (data.brandColor ?? "").trim() || null;
+  if (data.brandColor !== undefined) {
+    const c = (data.brandColor ?? "").trim();
+    patch.brandColor = /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : null; // só cor hex válida
+  }
+  if (data.theme !== undefined) patch.theme = data.theme === "light" ? "light" : "dark";
+  if (data.corners !== undefined) patch.corners = data.corners === "square" ? "square" : "rounded";
   return prisma.organization.update({ where: { id: organizationId }, data: patch });
 }
 

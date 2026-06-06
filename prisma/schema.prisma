@@ -38,6 +38,8 @@ model Organization {
   maxUsers     Int?
   maxEmployees Int?
   brandColor   String?
+  theme        String?  @default("dark")    // dark | light
+  corners      String?  @default("rounded")  // rounded | square
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
