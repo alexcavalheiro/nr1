@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
-import { createClient, getClient, setClientActive, writeAudit } from "@/src/index";
+import { createClient, getClient, setClientActive, updateClientBranding, updateClientPlan, writeAudit } from "@/src/index";
 import { createSession, requireSession, type Session } from "../lib/auth";
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
@@ -44,6 +44,28 @@ export async function toggleClientAction(formData: FormData) {
   await setClientActive(id, active);
   await writeAudit({ organizationId: id, actorId: s.userId, action: active ? "client.activated" : "client.suspended", entityType: "Organization", entityId: id });
   revalidatePath("/admin");
+}
+
+export async function updatePlanAction(formData: FormData) {
+  const s = await guardSuper();
+  const id = str(formData, "id");
+  await updateClientPlan(id, {
+    plan: str(formData, "plan"),
+    maxUsers: str(formData, "maxUsers"),
+    maxEmployees: str(formData, "maxEmployees"),
+  });
+  await writeAudit({ organizationId: id, actorId: s.userId, action: "client.plan_updated", entityType: "Organization", entityId: id, metadata: { plan: str(formData, "plan") } });
+  revalidatePath(`/admin/${id}`);
+  redirect(`/admin/${id}?ok=plan`);
+}
+
+export async function updateBrandingAction(formData: FormData) {
+  const s = await guardSuper();
+  const id = str(formData, "id");
+  await updateClientBranding(id, { logoUrl: str(formData, "logoUrl"), brandColor: str(formData, "brandColor") });
+  await writeAudit({ organizationId: id, actorId: s.userId, action: "client.branding_updated", entityType: "Organization", entityId: id });
+  revalidatePath(`/admin/${id}`);
+  redirect(`/admin/${id}?ok=brand`);
 }
 
 /** Entra no ambiente de um cliente (impersonação). Mantém o papel SUPER_ADMIN. */

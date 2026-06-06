@@ -52,15 +52,22 @@ export async function AppShell({
   showReport?: boolean;
 }) {
   await ensureDb();
-  const org = await prisma.organization.findUnique({ where: { id: session.organizationId }, select: { name: true } });
+  const org = await prisma.organization.findUnique({ where: { id: session.organizationId }, select: { name: true, logoUrl: true } });
   const isSuper = session.role === "SUPER_ADMIN" && !session.impersonating;
 
   return (
     <div className="layout">
       <aside className="sidebar">
         <div className="sidebar-brand">
-          <span className="logo-mark">NR</span>
-          <span className="logo-text">Plataforma NR-1<small>Saúde Organizacional</small></span>
+          {org?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={org.logoUrl} alt={org.name} style={{ maxHeight: 32, maxWidth: 120, objectFit: "contain" }} />
+          ) : (
+            <>
+              <span className="logo-mark">NR</span>
+              <span className="logo-text">Plataforma NR-1<small>Saúde Organizacional</small></span>
+            </>
+          )}
         </div>
         <nav className="side-nav">
           <span className="side-nav-label">Plataforma</span>

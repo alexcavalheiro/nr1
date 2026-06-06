@@ -43,6 +43,12 @@ export interface CreateMemberInput {
 }
 
 export async function createMember(input: CreateMemberInput) {
+  // Limite de usuários do plano (definido pelo provedor). null = ilimitado.
+  const limitOrg = await prisma.organization.findUnique({ where: { id: input.organizationId }, select: { maxUsers: true } });
+  if (limitOrg?.maxUsers != null) {
+    const count = await prisma.membership.count({ where: { organizationId: input.organizationId } });
+    if (count >= limitOrg.maxUsers) throw new Error(`Limite de usuários do plano atingido (${limitOrg.maxUsers}). Fale com o provedor.`);
+  }
   const email = input.email.trim().toLowerCase();
   let user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
