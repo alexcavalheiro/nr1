@@ -12,6 +12,7 @@ export {
 } from "./services/permission.service";
 export { scopedDepartmentIds, hasFullScope, departmentScopeClause } from "./services/scope.service";
 export { collaboratorHome, onboardingSteps } from "./services/home.service";
+export { employeeDossier } from "./services/dossier.service";
 export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany } from "./services/company.service";
 export {
   listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
