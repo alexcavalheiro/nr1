@@ -68,6 +68,7 @@ model Organization {
   pendencies      Pendency[]
   importBatches   ImportBatch[]
   rolePermissions RolePermission[]
+  employees       Employee[]
 
   @@index([active])
 }
@@ -87,6 +88,7 @@ model Department {
   children     Department[] @relation("DeptHierarchy")
   memberships  Membership[]
   risks        Risk[]
+  employees    Employee[]
 
   @@index([organizationId])
   @@index([parentId])
@@ -121,6 +123,7 @@ model User {
   auditLogs           AuditLog[]
   consents            Consent[]
   dataRequests        DataSubjectRequest[]
+  employee            Employee?
 }
 
 // Vínculo usuário↔organização, carregando o PERFIL (papel) dentro daquela empresa.
@@ -1313,9 +1316,38 @@ model Company {
   suppliers    Supplier[]
   obligations  Obligation[]
   pendencies   Pendency[]
+  employees    Employee[]
 
   @@unique([organizationId, cnpj])
   @@index([organizationId])
+}
+
+// Cadastro da força de trabalho (colaboradores NR-1). Pode existir sem login;
+// userId vincula opcionalmente a um usuário do sistema.
+model Employee {
+  id             String    @id @default(cuid())
+  organizationId String
+  companyId      String?
+  departmentId   String?
+  userId         String?   @unique
+  name           String
+  cpf            String?
+  email          String?
+  jobTitle       String?
+  phone          String?
+  status         String?   @default("ATIVO")
+  admissionDate  DateTime?
+  observacoes    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  company      Company?     @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  department   Department?  @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([companyId])
 }
 
 model Partner {
