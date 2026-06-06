@@ -19,6 +19,7 @@ export {
   surveyAlerts, analyzeOpenAnswers, suggestActionPlans, surveyExecutiveReport,
   type SurveyAlert, type Plan5W2H,
 } from "./services/survey-intelligence.service";
+export { surveyHeatmap, surveyHistory, type HeatRow, type HeatCell } from "./services/survey-analytics.service";
 export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany } from "./services/company.service";
 export {
   listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
