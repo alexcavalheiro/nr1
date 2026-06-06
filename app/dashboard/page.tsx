@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ensureDb, prisma } from "@/src/db";
-import { getHeatmap, getRanking } from "@/src/index";
+import { getHeatmap, getRanking, onboardingSteps } from "@/src/index";
 import { requireSession } from "../lib/auth";
 import { AppShell } from "../components/AppShell";
 import { RiskDonut } from "../components/RiskDonut";
@@ -28,8 +28,23 @@ export default async function Dashboard() {
   const levelByRisk = new Map(heatmap.cells.map((c) => [c.riskId, c.level]));
   const recs = (summary?.content ?? "").split("\n").map((s) => s.trim()).filter((l) => l.startsWith("- ")).map((l) => l.slice(2));
 
+  const steps = await onboardingSteps(orgId);
+  const stepsDone = steps.filter((s) => s.done).length;
+
   return (
     <AppShell session={session} active="dashboard" title="Dashboard NR-1" subtitle="Visão geral dos riscos psicossociais e alertas organizacionais">
+      {stepsDone < steps.length && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h2 className="section-title" style={{ marginTop: 0 }}>Primeiros passos ({stepsDone}/{steps.length})</h2>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
+            {steps.map((s) => (
+              <Link key={s.key} href={s.href} className="badge" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", gap: 6, opacity: s.done ? 0.6 : 1 }}>
+                <span>{s.done ? "✅" : "⬜"}</span> {s.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Linha 1 — indicadores */}
       <div className="grid row">
         <div className="card stat-card">

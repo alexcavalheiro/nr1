@@ -126,7 +126,25 @@ h1, h2, h3 { letter-spacing: -0.02em; margin: 0; }
 .grid-2 { display: grid; grid-template-columns: 1.05fr 1fr; gap: 18px; }
 .row { margin-bottom: 18px; }
 @media (max-width: 1000px) { .grid { grid-template-columns: repeat(2, 1fr); } .grid-2 { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { .layout { grid-template-columns: 1fr; } .sidebar { display: none; } }
+@media (max-width: 720px) {
+  .layout { grid-template-columns: 1fr; }
+  /* Menu vira barra horizontal rolável no topo (em vez de sumir). */
+  .sidebar {
+    position: static; height: auto; flex-direction: row; align-items: center;
+    gap: 8px; overflow-x: auto; padding: 8px 12px;
+    border-right: none; border-bottom: 1px solid var(--border);
+  }
+  .sidebar-brand { display: none; }
+  .side-nav { flex-direction: row; gap: 6px; margin-top: 0; }
+  .side-nav-label { display: none; }
+  .side-link { white-space: nowrap; padding: 8px 10px; }
+  .side-link.active::before { display: none; }
+  .sidebar-foot { margin: 0 0 0 auto; padding-top: 0; border-top: none; display: flex; align-items: center; gap: 8px; }
+  .sidebar-foot .side-user .meta { display: none; }
+  .page-body { padding: 16px; }
+  .page-header { padding: 14px 16px; flex-wrap: wrap; gap: 8px; }
+  .header-tools { flex-wrap: wrap; }
+}
 
 .section-title { margin: 28px 0 14px; font-size: 16px; font-weight: 650; }
 

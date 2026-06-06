@@ -11,13 +11,14 @@ import {
 } from "./icons";
 
 export type ShellKey =
-  | "admin" | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
+  | "admin" | "inicio" | "dashboard" | "learning" | "hub" | "risks" | "surveys" | "listening"
   | "monitoring" | "documents" | "assistant" | "automations" | "integrations" | "privacy"
   | "empresas" | "colaboradores" | "users" | "permissions" | "account" | "import-export" | "audit";
 
 const NAV: { key: ShellKey; href: string; label: string; Icon: typeof IconDashboard; manage?: boolean; docs?: boolean; super?: boolean }[] = [
   { key: "admin", href: "/admin", label: "Clientes", Icon: IconBuilding, super: true },
-  { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard },
+  { key: "inicio", href: "/inicio", label: "Início", Icon: IconDashboard },
+  { key: "dashboard", href: "/dashboard", label: "Dashboard", Icon: IconDashboard, manage: true },
   { key: "learning", href: "/learning", label: "Aprendizagem", Icon: IconBook },
   { key: "hub", href: "/hub", label: "Hub", Icon: IconMegaphone },
   { key: "risks", href: "/risks", label: "Riscos", Icon: IconRisks },

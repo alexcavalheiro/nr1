@@ -5,7 +5,7 @@ import { ensureDb, prisma } from "@/src/db";
 import { verifyPassword } from "@/src/auth-crypto";
 import { verifyTotp } from "@/src/services/totp.service";
 import { writeAudit } from "@/src/index";
-import { clearPending2fa, createPending2fa, createSession, getPending2fa } from "../lib/auth";
+import { canManage, clearPending2fa, createPending2fa, createSession, getPending2fa } from "../lib/auth";
 
 export async function login(formData: FormData) {
   await ensureDb();
@@ -50,7 +50,7 @@ export async function login(formData: FormData) {
 
   await createSession(pending);
   await writeAudit({ organizationId: membership.organizationId, actorId: user.id, action: "auth.login", entityType: "User", entityId: user.id });
-  redirect("/dashboard");
+  redirect(canManage(membership.role) ? "/dashboard" : "/inicio");
 }
 
 /** Segundo fator: confirma o código TOTP e cria a sessão definitiva. */
@@ -69,5 +69,5 @@ export async function verifyTwoFactor(formData: FormData) {
   await clearPending2fa();
   await createSession(pending);
   await writeAudit({ organizationId: pending.organizationId, actorId: pending.userId, action: "auth.login", entityType: "User", entityId: pending.userId, metadata: { twoFactor: true } });
-  redirect("/dashboard");
+  redirect(canManage(pending.role) ? "/dashboard" : "/inicio");
 }
