@@ -42,11 +42,14 @@ function initials(name: string) {
 }
 
 /** Tema white-label por cliente: sobrescreve variáveis CSS no :root. */
-function buildThemeCss(org: { brandColor?: string | null; theme?: string | null; corners?: string | null } | null): string {
+export function buildThemeCss(org: { brandColor?: string | null; accentColor?: string | null; theme?: string | null; corners?: string | null } | null): string {
   if (!org) return "";
   const vars: string[] = [];
-  const color = org.brandColor && /^#[0-9a-fA-F]{3,8}$/.test(org.brandColor) ? org.brandColor : null;
+  const hex = (c?: string | null) => (c && /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : null);
+  const color = hex(org.brandColor);
+  const accent = hex(org.accentColor);
   if (color) vars.push(`--purple:${color}`, `--ai:${color}`);
+  if (accent) vars.push(`--blue:${accent}`);
   if (org.theme === "light") {
     vars.push(
       "--bg:#f5f6fa", "--bg-elev:#ffffff", "--card:#ffffff", "--card-2:#eef1f7",
@@ -71,7 +74,7 @@ export async function AppShell({
   await ensureDb();
   const org = await prisma.organization.findUnique({
     where: { id: session.organizationId },
-    select: { name: true, logoUrl: true, brandColor: true, theme: true, corners: true },
+    select: { name: true, logoUrl: true, brandColor: true, accentColor: true, theme: true, corners: true, welcomeBanner: true },
   });
   const isSuper = session.role === "SUPER_ADMIN" && !session.impersonating;
   const themeCss = buildThemeCss(org);
@@ -118,6 +121,11 @@ export async function AppShell({
             <form action={exitClientAction}>
               <button type="submit" className="btn-sm" style={{ background: "#fff", color: "#7c3aed", border: "none", borderRadius: 6, padding: "4px 10px", cursor: "pointer" }}>Sair do cliente</button>
             </form>
+          </div>
+        )}
+        {org?.welcomeBanner && (
+          <div style={{ background: "var(--card-2)", borderBottom: "1px solid var(--border)", padding: "8px 16px", color: "var(--text)", fontSize: 14 }}>
+            👋 {org.welcomeBanner}
           </div>
         )}
         <header className="page-header">

@@ -126,16 +126,22 @@ export async function updateClientPlan(
 export async function updateClientBranding(
   organizationId: string,
   // logoUrl: undefined = mantém atual · null = remove · string = define (URL ou data URI)
-  data: { logoUrl?: string | null; brandColor?: string | null; theme?: string | null; corners?: string | null },
+  data: {
+    logoUrl?: string | null; brandColor?: string | null; accentColor?: string | null;
+    theme?: string | null; corners?: string | null; welcomeBanner?: string | null;
+  },
 ) {
-  const patch: { logoUrl?: string | null; brandColor?: string | null; theme?: string; corners?: string } = {};
+  const hex = (v: string | null | undefined) => {
+    const c = (v ?? "").trim();
+    return /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : null; // só cor hex válida (anti-injeção)
+  };
+  const patch: Record<string, string | null> = {};
   if (data.logoUrl !== undefined) patch.logoUrl = data.logoUrl || null;
-  if (data.brandColor !== undefined) {
-    const c = (data.brandColor ?? "").trim();
-    patch.brandColor = /^#[0-9a-fA-F]{3,8}$/.test(c) ? c : null; // só cor hex válida
-  }
+  if (data.brandColor !== undefined) patch.brandColor = hex(data.brandColor);
+  if (data.accentColor !== undefined) patch.accentColor = hex(data.accentColor);
   if (data.theme !== undefined) patch.theme = data.theme === "light" ? "light" : "dark";
   if (data.corners !== undefined) patch.corners = data.corners === "square" ? "square" : "rounded";
+  if (data.welcomeBanner !== undefined) patch.welcomeBanner = (data.welcomeBanner ?? "").trim().slice(0, 280) || null;
   return prisma.organization.update({ where: { id: organizationId }, data: patch });
 }
 

@@ -4,7 +4,14 @@ import { ensureDb } from "@/src/db";
 import { clientUsage, getClient } from "@/src/index";
 import { requireSession } from "../../lib/auth";
 import { AppShell } from "../../components/AppShell";
-import { enterClientAction, updateBrandingAction, updateClientInfoAction, updatePlanAction } from "../actions";
+import { applyPresetAction, enterClientAction, updateBrandingAction, updateClientInfoAction, updatePlanAction } from "../actions";
+
+const PRESETS = [
+  { key: "indigo", label: "Indigo", c: "#7c5cff" },
+  { key: "esmeralda", label: "Esmeralda", c: "#22c55e" },
+  { key: "oceano", label: "Oceano", c: "#0ea5e9" },
+  { key: "grafite", label: "Grafite", c: "#475569" },
+];
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +124,10 @@ export default async function ClientDetailPage({
                 <input name="brandColor" type="color" defaultValue={client.brandColor || "#7c5cff"} style={{ height: 40, padding: 2 }} />
               </div>
               <div style={{ flex: 1 }}>
+                <label>Cor secundária</label>
+                <input name="accentColor" type="color" defaultValue={client.accentColor || "#4f8cff"} style={{ height: 40, padding: 2 }} />
+              </div>
+              <div style={{ flex: 1 }}>
                 <label>Tema</label>
                 <select name="theme" defaultValue={client.theme ?? "dark"}>
                   <option value="dark">Escuro</option>
@@ -131,9 +142,29 @@ export default async function ClientDetailPage({
                 </select>
               </div>
             </div>
+            <label style={{ marginTop: 8 }}>Mensagem de boas-vindas (aparece no topo para os usuários do cliente)</label>
+            <input name="welcomeBanner" defaultValue={client.welcomeBanner ?? ""} maxLength={280} placeholder="Ex.: Bem-vindo à plataforma de saúde organizacional da Acme!" />
             <button className="btn" type="submit" style={{ marginTop: 10 }}>Salvar marca e tema</button>
           </form>
-          <p className="hint" style={{ marginTop: 8 }}>Envie um PNG, JPG ou SVG. A logo, a cor, o tema e os cantos são aplicados no ambiente do cliente.</p>
+
+          <div style={{ marginTop: 14 }}>
+            <span className="stat-label">Temas prontos:</span>
+            <div className="form-row" style={{ marginTop: 6, flexWrap: "wrap" }}>
+              {PRESETS.map((p) => (
+                <form key={p.key} action={applyPresetAction}>
+                  <input type="hidden" name="id" value={client.id} />
+                  <input type="hidden" name="preset" value={p.key} />
+                  <button type="submit" className="badge" style={{ border: "none", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ width: 12, height: 12, borderRadius: 3, background: p.c, display: "inline-block" }} /> {p.label}
+                  </button>
+                </form>
+              ))}
+            </div>
+          </div>
+
+          <p className="hint" style={{ marginTop: 10 }}>
+            Link de login com a marca do cliente: <code>/login?c={client.id}</code>
+          </p>
         </div>
       </div>
 

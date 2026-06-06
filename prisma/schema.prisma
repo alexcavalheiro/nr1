@@ -38,8 +38,10 @@ model Organization {
   maxUsers     Int?
   maxEmployees Int?
   brandColor   String?
+  accentColor  String?
   theme        String?  @default("dark")    // dark | light
   corners      String?  @default("rounded")  // rounded | square
+  welcomeBanner String?  // mensagem exibida ao topo para os usuários do cliente
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

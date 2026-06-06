@@ -29,6 +29,7 @@ const INCREMENTAL = [
   "20260605030000_employees",
   "20260605040000_org_plan",
   "20260605050000_org_theme",
+  "20260605060000_org_experience",
 ];
 
 /** Divide um arquivo .sql em statements individuais (sem comentários). */
