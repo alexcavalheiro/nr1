@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
 import {
   addQuestions,
+  createActionPlan,
   createSurvey,
   createSurveyFromTemplate,
   deleteSurvey,
@@ -33,6 +34,23 @@ async function assertSurvey(surveyId: string, organizationId: string) {
   const survey = await prisma.survey.findFirst({ where: { id: surveyId, organizationId } });
   if (!survey) throw new Error("Pesquisa não encontrada.");
   return survey;
+}
+
+/** Converte um plano 5W2H sugerido em um plano de ação real (acompanhável). */
+export async function createPlanFromSuggestionAction(formData: FormData) {
+  const s = await guardManage("edit");
+  const surveyId = str(formData, "surveyId");
+  const title = str(formData, "title");
+  const description = str(formData, "description");
+  const days = Number(str(formData, "days")) || 30;
+  await createActionPlan({
+    organizationId: s.organizationId,
+    title,
+    description,
+    dueDate: new Date(Date.now() + days * 86400000),
+  });
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "actionplan.created_from_survey", entityType: "ActionPlan", metadata: { surveyId, title } });
+  redirect(`/surveys/${surveyId}/resultados?plan=1`);
 }
 
 export async function createFromTemplateAction(formData: FormData) {
@@ -127,6 +145,11 @@ export async function submitResponseAction(formData: FormData) {
     return { questionId: q.id, valueNumber: raw === "" ? undefined : Number(raw) };
   });
 
-  await submitResponse({ surveyId, userId: session.userId, answers });
+  // Setor do respondente (recorte do mapa de calor; preservado mesmo se anônima).
+  const membership = await prisma.membership.findFirst({
+    where: { userId: session.userId, organizationId: session.organizationId },
+    select: { departmentId: true },
+  });
+  await submitResponse({ surveyId, userId: session.userId, departmentId: membership?.departmentId ?? undefined, answers });
   redirect(`/surveys/${surveyId}?responded=1`);
 }

@@ -22,7 +22,10 @@ export default async function SurveysPage() {
 
   return (
     <AppShell session={session} active="surveys" title="Pesquisas" subtitle="Diagnóstico e coleta de dados psicossociais">
-        <h2 className="section-title" style={{ marginTop: 0 }}>Pesquisas ({surveys.length})</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <h2 className="section-title" style={{ marginTop: 0 }}>Pesquisas ({surveys.length})</h2>
+          {manage && <Link href="/surveys/historico" className="btn-ghost btn-sm">📈 Comparativo histórico</Link>}
+        </div>
 
         {manage && (
           <div className="card" style={{ marginBottom: 20 }}>
