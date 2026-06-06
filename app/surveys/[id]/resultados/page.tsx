@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ensureDb, prisma } from "@/src/db";
-import { surveyScores, CLASS_LABEL } from "@/src/index";
+import { surveyScores, surveyAlerts, CLASS_LABEL } from "@/src/index";
 import { canManage, requireSession } from "../../../lib/auth";
 import { AppShell } from "../../../components/AppShell";
 
@@ -30,7 +30,7 @@ export default async function ResultadosPage({ params }: { params: Promise<{ id:
   const { id } = await params;
   const survey = await prisma.survey.findFirst({ where: { id, organizationId: session.organizationId }, select: { title: true, anonymous: true } });
   if (!survey) notFound();
-  const r = await surveyScores(id);
+  const [r, alerts] = await Promise.all([surveyScores(id), surveyAlerts(id)]);
 
   // Anonimato: não mostrar indicadores com menos de 5 respostas.
   const MIN = 5;
@@ -38,7 +38,22 @@ export default async function ResultadosPage({ params }: { params: Promise<{ id:
 
   return (
     <AppShell session={session} active="surveys" title={`Resultados — ${survey.title}`} subtitle="Indicadores por dimensão e índice geral" showReport={false}>
-      <p style={{ marginBottom: 16 }}><Link href={`/surveys/${id}`} className="btn-ghost btn-sm">← Voltar à pesquisa</Link></p>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <Link href={`/surveys/${id}`} className="btn-ghost btn-sm">← Voltar à pesquisa</Link>
+        <Link href={`/surveys/${id}/relatorio`} className="btn btn-sm" style={{ width: "auto" }}>📄 Relatório executivo (PDF)</Link>
+      </div>
+
+      {enough && alerts.length > 0 && (
+        <div className="card" style={{ marginBottom: 20, borderLeft: "4px solid var(--red)" }}>
+          <h2 className="section-title" style={{ marginTop: 0 }}>⚠️ Alertas ({alerts.length})</h2>
+          {alerts.map((a, i) => (
+            <p key={i} style={{ margin: "6px 0" }}>
+              <span className={`badge ${a.severity === "alto" ? "CRITICAL" : "HIGH"}`}>{a.severity === "alto" ? "Alto" : "Médio"}</span>{" "}
+              <strong>{a.title}</strong>{a.confidential && " 🔒"} — <span className="hint">{a.description}</span>
+            </p>
+          ))}
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 28 }}>
