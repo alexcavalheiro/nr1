@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ensureDb } from "@/src/db";
 import { listClients, platformStats } from "@/src/index";
@@ -70,17 +71,17 @@ export default async function AdminPage({
         ) : (
           <table>
             <thead>
-              <tr><th>Cliente</th><th>Usuários</th><th>Colab.</th><th>Empresas</th><th>Status</th><th>Criado</th><th></th></tr>
+              <tr><th>Cliente</th><th>Plano</th><th>Usuários</th><th>Colab.</th><th>Empresas</th><th>Status</th><th></th></tr>
             </thead>
             <tbody>
               {clients.map((c) => (
                 <tr key={c.id} style={{ opacity: c.active ? 1 : 0.55 }}>
-                  <td><strong>{c.name}</strong>{c.cnpj ? <div className="hint">{c.cnpj}</div> : null}</td>
-                  <td>{c._count.memberships}</td>
-                  <td>{c._count.employees}</td>
+                  <td><Link href={`/admin/${c.id}`}>{c.name}</Link>{c.cnpj ? <div className="hint">{c.cnpj}</div> : null}</td>
+                  <td><span className="badge">{c.plan ?? "—"}</span></td>
+                  <td>{c._count.memberships}{c.maxUsers != null ? <span className="hint">/{c.maxUsers}</span> : null}</td>
+                  <td>{c._count.employees}{c.maxEmployees != null ? <span className="hint">/{c.maxEmployees}</span> : null}</td>
                   <td>{c._count.companies}</td>
                   <td>{c.active ? <span className="badge LOW">Ativo</span> : <span className="badge CRITICAL">Suspenso</span>}</td>
-                  <td className="hint">{new Date(c.createdAt).toLocaleDateString("pt-BR")}</td>
                   <td>
                     <div className="form-row">
                       <form action={enterClientAction}>

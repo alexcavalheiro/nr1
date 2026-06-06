@@ -59,6 +59,12 @@ export function getEmployee(organizationId: string, id: string) {
 export async function createEmployee(organizationId: string, input: EmployeeInput) {
   const data = normalize(input);
   if (!data.name) throw new Error("Nome é obrigatório.");
+  // Limite de colaboradores do plano (definido pelo provedor). null = ilimitado.
+  const org = await prisma.organization.findUnique({ where: { id: organizationId }, select: { maxEmployees: true } });
+  if (org?.maxEmployees != null) {
+    const count = await prisma.employee.count({ where: { organizationId } });
+    if (count >= org.maxEmployees) throw new Error(`Limite de colaboradores do plano atingido (${org.maxEmployees}). Fale com o provedor.`);
+  }
   try {
     return await prisma.employee.create({ data: { organizationId, ...data } });
   } catch (e) {

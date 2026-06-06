@@ -17,6 +17,7 @@ export {
 } from "./services/employee.service";
 export {
   listClients, platformStats, createClient, setClientActive, getClient, ensurePlatformAdmin,
+  updateClientPlan, updateClientBranding, clientUsage,
 } from "./services/platform.service";
 export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail, updateRisk, deleteRisk } from "./services/risk.service";
 export { prioritizeRisk, recomputeRanking, getRanking } from "./services/prioritization.service";

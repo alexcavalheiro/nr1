@@ -80,6 +80,53 @@ export function getClient(organizationId: string) {
   return prisma.organization.findUnique({ where: { id: organizationId } });
 }
 
+const intOrNull = (v: string | number | null | undefined) => {
+  if (v === "" || v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
+};
+
+export async function updateClientPlan(
+  organizationId: string,
+  data: { plan?: string | null; maxUsers?: string | number | null; maxEmployees?: string | number | null },
+) {
+  return prisma.organization.update({
+    where: { id: organizationId },
+    data: {
+      plan: (data.plan ?? "").toString().trim() || null,
+      maxUsers: intOrNull(data.maxUsers),
+      maxEmployees: intOrNull(data.maxEmployees),
+    },
+  });
+}
+
+export async function updateClientBranding(
+  organizationId: string,
+  data: { logoUrl?: string | null; brandColor?: string | null },
+) {
+  return prisma.organization.update({
+    where: { id: organizationId },
+    data: {
+      logoUrl: (data.logoUrl ?? "").trim() || null,
+      brandColor: (data.brandColor ?? "").trim() || null,
+    },
+  });
+}
+
+/** Relatório de uso de um cliente. */
+export async function clientUsage(organizationId: string) {
+  const [users, employees, companies, risks, surveys, manifestations, lastLogin] = await Promise.all([
+    prisma.membership.count({ where: { organizationId } }),
+    prisma.employee.count({ where: { organizationId } }),
+    prisma.company.count({ where: { organizationId } }),
+    prisma.risk.count({ where: { organizationId } }),
+    prisma.survey.count({ where: { organizationId } }),
+    prisma.manifestation.count({ where: { organizationId } }),
+    prisma.auditLog.findFirst({ where: { organizationId, action: "auth.login" }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+  ]);
+  return { users, employees, companies, risks, surveys, manifestations, lastLoginAt: lastLogin?.createdAt ?? null };
+}
+
 /**
  * Garante que existe um Super Admin (provedor) e a organização do provedor.
  * Idempotente — chamado no bootstrap (ensureDb). Login: super@nr1.com / super123.
