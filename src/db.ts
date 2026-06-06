@@ -59,7 +59,7 @@ export function ensureDb(): Promise<void> {
 
     // Migrations incrementais idempotentes (CREATE ... IF NOT EXISTS). Rodam a
     // cada boot no modo PGlite; no Postgres/Supabase são aplicadas manualmente.
-    for (const extra of ["20260605000000_corporate_data", "20260605010000_role_permissions", "20260605020000_access_security", "20260605030000_employees", "20260605040000_org_plan", "20260605050000_org_theme", "20260605060000_org_experience"]) {
+    for (const extra of ["20260605000000_corporate_data", "20260605010000_role_permissions", "20260605020000_access_security", "20260605030000_employees", "20260605040000_org_plan", "20260605050000_org_theme", "20260605060000_org_experience", "20260605070000_survey_dimensions"]) {
       try {
         const sql = readFileSync(join(process.cwd(), `prisma/migrations/${extra}/migration.sql`), "utf8");
         await pg.exec(sql);

@@ -6,6 +6,7 @@ import { ensureDb, prisma } from "@/src/db";
 import {
   addQuestions,
   createSurvey,
+  createSurveyFromTemplate,
   deleteSurvey,
   deriveRisksFromSurvey,
   getSurveyForResponse,
@@ -32,6 +33,15 @@ async function assertSurvey(surveyId: string, organizationId: string) {
   const survey = await prisma.survey.findFirst({ where: { id: surveyId, organizationId } });
   if (!survey) throw new Error("Pesquisa não encontrada.");
   return survey;
+}
+
+export async function createFromTemplateAction(formData: FormData) {
+  const s = await guardManage("create");
+  const templateKey = str(formData, "templateKey");
+  const anonymous = str(formData, "anonymous") !== "no";
+  const survey = await createSurveyFromTemplate(s.organizationId, templateKey, { anonymous });
+  await writeAudit({ organizationId: s.organizationId, actorId: s.userId, action: "survey.created_from_template", entityType: "Survey", entityId: survey.id, metadata: { templateKey } });
+  redirect(`/surveys/${survey.id}`);
 }
 
 export async function createSurveyAction(formData: FormData) {

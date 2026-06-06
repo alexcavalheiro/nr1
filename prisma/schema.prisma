@@ -323,6 +323,11 @@ model SurveyQuestion {
   order           Int          @default(0)
   options         Json?        // alternativas p/ múltipla escolha/escala (rótulos)
   riskCategoryId  String?      // mapeia a pergunta a um risco psicossocial monitorado
+  section         String?      // bloco da pesquisa (ex.: "Saúde Mental e Bem-Estar")
+  dimension       String?      // dimensão de score (bem_estar, sobrecarga, seguranca…)
+  reverseScored   Boolean      @default(false) // pergunta negativa: resposta alta = pior
+  weight          Float        @default(1)     // peso no cálculo do score
+  sensitive       Boolean      @default(false) // resposta sensível (assédio etc.)
   createdAt       DateTime     @default(now())
 
   version      SurveyVersion @relation(fields: [surveyVersionId], references: [id], onDelete: Cascade)
