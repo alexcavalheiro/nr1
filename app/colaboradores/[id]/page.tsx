@@ -28,7 +28,10 @@ export default async function ColaboradorEditPage({
 
   return (
     <AppShell session={session} active="colaboradores" title={`Editar ${e.name}`} subtitle="Dados do colaborador" showReport={false}>
-      <p style={{ marginBottom: 16 }}><Link href="/colaboradores" className="btn-ghost btn-sm">← Voltar para Colaboradores</Link></p>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
+        <Link href="/colaboradores" className="btn-ghost btn-sm">← Voltar para Colaboradores</Link>
+        <Link href={`/colaboradores/${e.id}/dossie`} className="btn btn-sm" style={{ width: "auto" }}>📄 Gerar dossiê (PDF)</Link>
+      </div>
       {ok && <p className="success" style={{ marginBottom: 16 }}>Colaborador atualizado com sucesso.</p>}
       {error && <p className="error" style={{ marginBottom: 16 }}>{error}</p>}
 
