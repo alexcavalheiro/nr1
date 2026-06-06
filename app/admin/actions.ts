@@ -101,10 +101,31 @@ export async function updateBrandingAction(formData: FormData) {
   await updateClientBranding(id, {
     logoUrl,
     brandColor: str(formData, "brandColor"),
+    accentColor: str(formData, "accentColor"),
     theme: str(formData, "theme"),
     corners: str(formData, "corners"),
+    welcomeBanner: str(formData, "welcomeBanner"),
   });
   await writeAudit({ organizationId: id, actorId: s.userId, action: "client.branding_updated", entityType: "Organization", entityId: id });
+  revalidatePath(`/admin/${id}`);
+  redirect(`/admin/${id}?ok=brand`);
+}
+
+const PRESETS: Record<string, { brandColor: string; accentColor: string; theme: string }> = {
+  indigo: { brandColor: "#7c5cff", accentColor: "#4f8cff", theme: "dark" },
+  esmeralda: { brandColor: "#22c55e", accentColor: "#14b8a6", theme: "dark" },
+  oceano: { brandColor: "#0ea5e9", accentColor: "#6366f1", theme: "light" },
+  grafite: { brandColor: "#475569", accentColor: "#0ea5e9", theme: "light" },
+};
+
+export async function applyPresetAction(formData: FormData) {
+  const s = await guardSuper();
+  const id = str(formData, "id");
+  const preset = PRESETS[str(formData, "preset")];
+  if (preset) {
+    await updateClientBranding(id, preset);
+    await writeAudit({ organizationId: id, actorId: s.userId, action: "client.branding_updated", entityType: "Organization", entityId: id, metadata: { preset: str(formData, "preset") } });
+  }
   revalidatePath(`/admin/${id}`);
   redirect(`/admin/${id}?ok=brand`);
 }
