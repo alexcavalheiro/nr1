@@ -86,6 +86,29 @@ const intOrNull = (v: string | number | null | undefined) => {
   return Number.isFinite(n) && n >= 0 ? Math.floor(n) : null;
 };
 
+/** Edita os dados cadastrais do cliente (organização). */
+export async function updateClientInfo(
+  organizationId: string,
+  data: { name?: string; legalName?: string | null; cnpj?: string | null; industry?: string | null },
+) {
+  const name = (data.name ?? "").trim();
+  if (!name) throw new Error("Nome do cliente é obrigatório.");
+  try {
+    return await prisma.organization.update({
+      where: { id: organizationId },
+      data: {
+        name,
+        legalName: (data.legalName ?? "").trim() || null,
+        cnpj: (data.cnpj ?? "").trim() || null,
+        industry: (data.industry ?? "").trim() || null,
+      },
+    });
+  } catch (e) {
+    if (String((e as Error).message).includes("Unique")) throw new Error("Já existe uma organização com este CNPJ.");
+    throw e;
+  }
+}
+
 export async function updateClientPlan(
   organizationId: string,
   data: { plan?: string | null; maxUsers?: string | number | null; maxEmployees?: string | number | null },
