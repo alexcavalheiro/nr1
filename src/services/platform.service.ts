@@ -125,15 +125,13 @@ export async function updateClientPlan(
 
 export async function updateClientBranding(
   organizationId: string,
+  // logoUrl: undefined = mantém atual · null = remove · string = define (URL ou data URI)
   data: { logoUrl?: string | null; brandColor?: string | null },
 ) {
-  return prisma.organization.update({
-    where: { id: organizationId },
-    data: {
-      logoUrl: (data.logoUrl ?? "").trim() || null,
-      brandColor: (data.brandColor ?? "").trim() || null,
-    },
-  });
+  const patch: { logoUrl?: string | null; brandColor?: string | null } = {};
+  if (data.logoUrl !== undefined) patch.logoUrl = data.logoUrl || null;
+  if (data.brandColor !== undefined) patch.brandColor = (data.brandColor ?? "").trim() || null;
+  return prisma.organization.update({ where: { id: organizationId }, data: patch });
 }
 
 /** Relatório de uso de um cliente. */
