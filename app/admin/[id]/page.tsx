@@ -111,11 +111,29 @@ export default async function ClientDetailPage({
                 <input type="checkbox" name="removeLogo" style={{ width: "auto" }} /> Remover logo atual
               </label>
             )}
-            <label style={{ marginTop: 8 }}>Cor da marca</label>
-            <input name="brandColor" type="text" defaultValue={client.brandColor ?? ""} placeholder="#7c3aed" />
-            <button className="btn" type="submit" style={{ marginTop: 10 }}>Salvar marca</button>
+            <div className="form-row" style={{ marginTop: 8 }}>
+              <div style={{ flex: 1 }}>
+                <label>Cor primária</label>
+                <input name="brandColor" type="color" defaultValue={client.brandColor || "#7c5cff"} style={{ height: 40, padding: 2 }} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Tema</label>
+                <select name="theme" defaultValue={client.theme ?? "dark"}>
+                  <option value="dark">Escuro</option>
+                  <option value="light">Claro</option>
+                </select>
+              </div>
+              <div style={{ flex: 1 }}>
+                <label>Cantos</label>
+                <select name="corners" defaultValue={client.corners ?? "rounded"}>
+                  <option value="rounded">Arredondados</option>
+                  <option value="square">Retos</option>
+                </select>
+              </div>
+            </div>
+            <button className="btn" type="submit" style={{ marginTop: 10 }}>Salvar marca e tema</button>
           </form>
-          <p className="hint" style={{ marginTop: 8 }}>Envie um PNG, JPG ou SVG. A logo aparece na barra lateral ao entrar no cliente.</p>
+          <p className="hint" style={{ marginTop: 8 }}>Envie um PNG, JPG ou SVG. A logo, a cor, o tema e os cantos são aplicados no ambiente do cliente.</p>
         </div>
       </div>
 

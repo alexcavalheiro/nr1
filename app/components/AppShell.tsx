@@ -41,6 +41,23 @@ function initials(name: string) {
   return name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 }
 
+/** Tema white-label por cliente: sobrescreve variáveis CSS no :root. */
+function buildThemeCss(org: { brandColor?: string | null; theme?: string | null; corners?: string | null } | null): string {
+  if (!org) return "";
+  const vars: string[] = [];
+  const color = org.brandColor && /^#[0-9a-fA-F]{3,8}$/.test(org.brandColor) ? org.brandColor : null;
+  if (color) vars.push(`--purple:${color}`, `--ai:${color}`);
+  if (org.theme === "light") {
+    vars.push(
+      "--bg:#f5f6fa", "--bg-elev:#ffffff", "--card:#ffffff", "--card-2:#eef1f7",
+      "--text:#14171f", "--muted:#5a6175", "--faint:#98a0b3",
+      "--border:rgba(0,0,0,0.10)", "--border-strong:rgba(0,0,0,0.16)",
+    );
+  }
+  if (org.corners === "square") vars.push("--radius:6px", "--radius-sm:4px");
+  return vars.length ? `:root{${vars.join(";")}}` : "";
+}
+
 export async function AppShell({
   session, active, title, subtitle, children, showReport = true,
 }: {
@@ -52,11 +69,16 @@ export async function AppShell({
   showReport?: boolean;
 }) {
   await ensureDb();
-  const org = await prisma.organization.findUnique({ where: { id: session.organizationId }, select: { name: true, logoUrl: true } });
+  const org = await prisma.organization.findUnique({
+    where: { id: session.organizationId },
+    select: { name: true, logoUrl: true, brandColor: true, theme: true, corners: true },
+  });
   const isSuper = session.role === "SUPER_ADMIN" && !session.impersonating;
+  const themeCss = buildThemeCss(org);
 
   return (
     <div className="layout">
+      {themeCss && <style dangerouslySetInnerHTML={{ __html: themeCss }} />}
       <aside className="sidebar">
         <div className="sidebar-brand">
           {org?.logoUrl ? (

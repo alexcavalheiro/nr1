@@ -98,7 +98,12 @@ export async function updateBrandingAction(formData: FormData) {
     }
   }
 
-  await updateClientBranding(id, { logoUrl, brandColor: str(formData, "brandColor") });
+  await updateClientBranding(id, {
+    logoUrl,
+    brandColor: str(formData, "brandColor"),
+    theme: str(formData, "theme"),
+    corners: str(formData, "corners"),
+  });
   await writeAudit({ organizationId: id, actorId: s.userId, action: "client.branding_updated", entityType: "Organization", entityId: id });
   revalidatePath(`/admin/${id}`);
   redirect(`/admin/${id}?ok=brand`);
