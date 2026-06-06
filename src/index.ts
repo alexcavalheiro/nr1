@@ -11,6 +11,10 @@ export {
   requirePermission, setPermission,
 } from "./services/permission.service";
 export { scopedDepartmentIds, hasFullScope, departmentScopeClause } from "./services/scope.service";
+export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany } from "./services/company.service";
+export {
+  listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
+} from "./services/employee.service";
 export { createRisk, assessRisk, getHeatmap, listRisks, getRiskDetail, updateRisk, deleteRisk } from "./services/risk.service";
 export { prioritizeRisk, recomputeRanking, getRanking } from "./services/prioritization.service";
 export { createActionPlan, advanceActionPlan, addActionComment, addActionEvidence } from "./services/actionplan.service";
