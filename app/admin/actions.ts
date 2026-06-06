@@ -78,10 +78,27 @@ export async function updatePlanAction(formData: FormData) {
   redirect(`/admin/${id}?ok=plan`);
 }
 
+const MAX_LOGO_BYTES = 400 * 1024; // 400 KB
+
 export async function updateBrandingAction(formData: FormData) {
   const s = await guardSuper();
   const id = str(formData, "id");
-  await updateClientBranding(id, { logoUrl: str(formData, "logoUrl"), brandColor: str(formData, "brandColor") });
+
+  // logoUrl: undefined = mantém · null = remove · data URI = nova logo enviada
+  let logoUrl: string | null | undefined = undefined;
+  if (str(formData, "removeLogo") === "on") {
+    logoUrl = null;
+  } else {
+    const file = formData.get("logoFile");
+    if (file instanceof File && file.size > 0) {
+      if (!file.type.startsWith("image/")) redirect(`/admin/${id}?error=${encodeURIComponent("Envie um arquivo de imagem (PNG, JPG, SVG…).")}`);
+      if (file.size > MAX_LOGO_BYTES) redirect(`/admin/${id}?error=${encodeURIComponent("Logo muito grande (máx. 400 KB).")}`);
+      const base64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+      logoUrl = `data:${file.type};base64,${base64}`;
+    }
+  }
+
+  await updateClientBranding(id, { logoUrl, brandColor: str(formData, "brandColor") });
   await writeAudit({ organizationId: id, actorId: s.userId, action: "client.branding_updated", entityType: "Organization", entityId: id });
   revalidatePath(`/admin/${id}`);
   redirect(`/admin/${id}?ok=brand`);

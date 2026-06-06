@@ -95,18 +95,27 @@ export default async function ClientDetailPage({
 
         <div className="card">
           <h2>Marca</h2>
+          {client.logoUrl && (
+            <p style={{ marginBottom: 10 }}>
+              <span className="stat-label" style={{ display: "block", marginBottom: 4 }}>Logo atual:</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={client.logoUrl} alt="logo" style={{ maxHeight: 48, maxWidth: 160, objectFit: "contain" }} />
+            </p>
+          )}
           <form action={updateBrandingAction}>
             <input type="hidden" name="id" value={client.id} />
-            <label>URL do logo</label>
-            <input name="logoUrl" defaultValue={client.logoUrl ?? ""} placeholder="https://.../logo.png" />
+            <label>Logo (arquivo de imagem, máx. 400 KB)</label>
+            <input name="logoFile" type="file" accept="image/*" />
+            {client.logoUrl && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontWeight: "normal" }}>
+                <input type="checkbox" name="removeLogo" style={{ width: "auto" }} /> Remover logo atual
+              </label>
+            )}
             <label style={{ marginTop: 8 }}>Cor da marca</label>
             <input name="brandColor" type="text" defaultValue={client.brandColor ?? ""} placeholder="#7c3aed" />
-            {client.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <p style={{ marginTop: 10 }}><img src={client.logoUrl} alt="logo" style={{ maxHeight: 40 }} /></p>
-            )}
             <button className="btn" type="submit" style={{ marginTop: 10 }}>Salvar marca</button>
           </form>
+          <p className="hint" style={{ marginTop: 8 }}>Envie um PNG, JPG ou SVG. A logo aparece na barra lateral ao entrar no cliente.</p>
         </div>
       </div>
 
