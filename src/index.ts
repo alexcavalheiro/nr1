@@ -15,6 +15,10 @@ export { collaboratorHome, onboardingSteps } from "./services/home.service";
 export { employeeDossier } from "./services/dossier.service";
 export { SURVEY_TEMPLATES, getTemplate } from "./services/survey-templates";
 export { surveyScores, classify, CLASS_LABEL, DIMENSION_LABELS, type Classification } from "./services/survey-score.service";
+export {
+  surveyAlerts, analyzeOpenAnswers, suggestActionPlans, surveyExecutiveReport,
+  type SurveyAlert, type Plan5W2H,
+} from "./services/survey-intelligence.service";
 export { listCompanies, getCompany, createCompany, updateCompany, deleteCompany } from "./services/company.service";
 export {
   listEmployees, getEmployee, createEmployee, updateEmployee, deleteEmployee, employeeFormOptions,
