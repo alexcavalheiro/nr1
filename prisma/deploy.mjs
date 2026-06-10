@@ -53,6 +53,29 @@ async function apply(prisma, file) {
   console.log(`[migrate] ${file}: ${statements.length} statements aplicados.`);
 }
 
+/**
+ * Reforço de segurança (lint Supabase 0013_rls_disabled_in_public): ativa RLS
+ * na tabela interna do Prisma e tira o acesso dos papéis públicos da API.
+ * Tolerante: a tabela/roles podem não existir (Postgres local), então nunca
+ * derruba o deploy. As migrations do Prisma usam conexão privilegiada que
+ * ignora o RLS, então isto não atrapalha.
+ */
+async function hardenRls(prisma) {
+  const stmts = [
+    `ALTER TABLE IF EXISTS public."_prisma_migrations" ENABLE ROW LEVEL SECURITY`,
+    `REVOKE ALL ON TABLE public."_prisma_migrations" FROM anon`,
+    `REVOKE ALL ON TABLE public."_prisma_migrations" FROM authenticated`,
+  ];
+  for (const s of stmts) {
+    try {
+      await prisma.$executeRawUnsafe(s);
+    } catch (e) {
+      console.warn("[migrate] RLS (ignorado):", e instanceof Error ? e.message : e);
+    }
+  }
+  console.log("[migrate] RLS de _prisma_migrations reforçado.");
+}
+
 const prisma = new PrismaClient({ log: ["error"] });
 try {
   const base = await prisma.$queryRawUnsafe(`SELECT to_regclass('public."Organization"')::text AS t`);
@@ -63,6 +86,7 @@ try {
     console.log("[migrate] schema base presente.");
   }
   for (const m of INCREMENTAL) await apply(prisma, m);
+  await hardenRls(prisma);
   console.log("[migrate] concluído com sucesso.");
   await prisma.$disconnect();
 } catch (e) {
