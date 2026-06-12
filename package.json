@@ -4,6 +4,9 @@
   "private": true,
   "description": "Plataforma Integrada de Saúde Organizacional e Conformidade NR-1",
   "type": "module",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
